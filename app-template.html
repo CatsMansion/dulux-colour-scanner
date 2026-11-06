@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#002C65">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json?sharecode=__SHARECODE__">
+<link rel="icon" href="icon-192.png?sharecode=__SHARECODE__">
+<link rel="apple-touch-icon" href="icon-192.png?sharecode=__SHARECODE__">
+<title>Dulux 取色器 · 相机识别油漆颜色</title>
+<style>
+:root{
+  --brand:#002C65; --brand-2:#1D4B73; --ink:#12202f; --muted:#5c6b7a;
+  --line:#dce3ea; --bg:#f4f6f8; --card:#ffffff; --sand:#EEECE6;
+  --ok:#0f7b4a; --warn:#a8650b; --bad:#b3261e;
+  --box:64px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  padding-bottom:calc(24px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:560px;margin:0 auto;padding:0 12px}
+header{
+  background:var(--brand); color:#fff;
+  padding:calc(12px + env(safe-area-inset-top)) 12px 14px;
+}
+header .inner{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.3px}
+.badge{font-size:11px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);white-space:nowrap}
+.badge.custom{background:#f6c352;color:#3a2800;border-color:#e0aa2c}
+.sub{font-size:11.5px;opacity:.82;margin:5px 0 0;max-width:560px;margin-left:auto;width:100%}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-top:12px;overflow:hidden;box-shadow:0 1px 3px rgba(16,32,48,.05)}
+.card-hd{padding:11px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-hd strong{font-size:13px;font-weight:650}
+.card-bd{padding:12px 14px}
+
+#stage{position:relative;background:#101820;aspect-ratio:4/3;overflow:hidden;touch-action:none}
+#stage video,#stage #freeze{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+#stage #freeze{display:none}
+#stage.frozen #freeze{display:block}
+#stage.frozen video{visibility:hidden}
+#reticle{
+  position:absolute;width:var(--box);height:var(--box);left:50%;top:50%;transform:translate(-50%,-50%);
+  border:2px solid #fff;border-radius:5px;box-shadow:0 0 0 2px rgba(0,0,0,.5),inset 0 0 0 1px rgba(0,0,0,.35);
+  pointer-events:none;transition:width .15s,height .15s
+}
+#reticle:before,#reticle:after{content:"";position:absolute;background:rgba(255,255,255,.9)}
+#reticle:before{left:50%;top:50%;width:14px;height:1px;transform:translate(-50%,-50%)}
+#reticle:after{left:50%;top:50%;width:1px;height:14px;transform:translate(-50%,-50%)}
+#stageHint{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#fff;font-size:11.5px;text-shadow:0 1px 4px #000;pointer-events:none}
+#frozenTag{position:absolute;top:8px;left:8px;background:#f6c352;color:#3a2800;font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;display:none}
+#stage.frozen #frozenTag{display:block}
+#camError{padding:26px 16px;text-align:center;color:#cbd5e1;display:none;font-size:13px;line-height:1.7}
+
+.statusrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;padding:9px 12px;background:#f9fbfc;border-bottom:1px solid var(--line)}
+.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:99px;padding:3px 9px;background:#fff;color:var(--muted)}
+.pill.on{background:#e8f5ee;border-color:#a9d9c1;color:var(--ok)}
+.pill.warn{background:#fdf4e3;border-color:#e8c98a;color:var(--warn)}
+.pill.torch{background:#fff3cf;border-color:#e9c67a;color:#8a5a00}
+.pill.torch .dot{background:#e0a02c}
+.dot{width:7px;height:7px;border-radius:50%;background:#9aa8b6}
+.pill.on .dot{background:var(--ok)}
+button.torch-on{background:#f6c352;border-color:#e0aa2c;color:#3a2800}
+.ctxwarn{margin-top:9px;padding:9px 11px;border-radius:9px;background:#fdecea;border-left:3px solid var(--bad);font-size:12.5px;line-height:1.55;display:none}
+.ctxwarn.show{display:block}
+.ctxwarn b{color:var(--bad)}
+
+.btnrow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:10px 6px;font-size:12.5px;font-weight:600;min-height:44px;transition:transform .06s,background .15s}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff;font-size:15px;font-weight:700;padding:14px 8px;min-height:54px}
+button.primary:disabled{background:#7e93aa;border-color:#7e93aa}
+button.ghost{background:#f7f9fb}
+button.danger{color:var(--bad);border-color:#eec9c5}
+button.wide{width:100%}
+.bigBtn{padding:0 12px 12px}
+.hint{font-size:11.5px;color:var(--muted);line-height:1.6}
+
+.result{display:none}
+.result.show{display:block}
+.compare{display:flex;gap:10px;align-items:stretch}
+.swatch{flex:1;border-radius:11px;border:1px solid rgba(0,0,0,.1);min-height:104px;position:relative;overflow:hidden}
+.swatch span{position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.9);color:#1a2733;font-size:10.5px;font-weight:700;text-align:center;padding:5px 2px;letter-spacing:.3px}
+.swatch code{position:absolute;top:7px;left:8px;background:rgba(255,255,255,.88);border-radius:5px;padding:2px 6px;font-size:10.5px;color:#1a2733;font-family:ui-monospace,Consolas,monospace}
+.vs{align-self:center;font-size:11px;color:var(--muted);font-weight:700}
+.winner{margin-top:12px}
+.winner .nm{font-size:19px;font-weight:700;line-height:1.25}
+.winner .cd{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:var(--brand-2);margin-top:2px}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;font-size:11.5px;color:var(--muted)}
+.meta b{font-weight:700;color:var(--ink)}
+.conf{margin-top:10px;padding:9px 11px;border-radius:9px;font-size:12.5px;line-height:1.5;background:#eef3f8;border-left:3px solid var(--brand-2)}
+.conf.great{background:#e8f5ee;border-color:var(--ok)}
+.conf.good{background:#eef7ef;border-color:#3c9a62}
+.conf.fair{background:#fdf4e3;border-color:var(--warn)}
+.conf.poor{background:#fdecea;border-color:var(--bad)}
+.conf small{display:block;opacity:.78;font-size:11px;margin-top:2px}
+
+.alts{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.alts h3{font-size:11.5px;color:var(--muted);margin:0 0 8px;font-weight:650;letter-spacing:.5px;text-transform:uppercase}
+.alt{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f0f3f6}
+.alt:last-child{border-bottom:0}
+.alt .chip{width:38px;height:38px;border-radius:8px;border:1px solid rgba(0,0,0,.12);flex:none}
+.alt .txt{flex:1;min-width:0}
+.alt .txt b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alt .txt small{color:var(--muted);font-size:11px;font-family:ui-monospace,Consolas,monospace}
+.alt .de{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+
+details.settings summary{padding:12px 14px;font-size:13px;font-weight:650;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.settings summary::-webkit-details-marker{display:none}
+details.settings summary:after{content:"▾";color:var(--muted);font-size:14px}
+details.settings[open] summary:after{content:"▴"}
+details.settings[open] summary{border-bottom:1px solid var(--line)}
+.setgrid{display:grid;gap:12px}
+.field label{display:block;font-size:12px;font-weight:650;margin-bottom:5px}
+.field .desc{font-size:11px;color:var(--muted);font-weight:400;margin-top:3px;line-height:1.5}
+input[type=range]{width:100%;accent-color:var(--brand)}
+input[type=text],input[type=search],select{width:100%;font:inherit;font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
+input[type=file]{display:none}
+.val{float:right;color:var(--brand-2);font-family:ui-monospace,Consolas,monospace;font-size:11.5px}
+.divider{height:1px;background:var(--line);margin:2px 0}
+.tagline{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.55}
+kbd{font-family:ui-monospace,Consolas,monospace;background:#eef2f6;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:11px}
+
+.sheet{position:fixed;inset:0;background:rgba(8,18,30,.55);z-index:50;display:none;align-items:flex-end;justify-content:center}
+.sheet.open{display:flex}
+.sheet-in{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom));max-height:86vh;overflow:auto}
+.sheet h2{font-size:16px;margin:0 0 4px}
+.sheet p{font-size:12px;color:var(--muted);margin:0 0 14px;line-height:1.6}
+.radio{display:block;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:9px;cursor:pointer}
+.radio.sel{border-color:var(--brand);background:#f2f7fd}
+.radio b{display:block;font-size:13.5px}
+.radio small{display:block;color:var(--muted);font-size:11.5px;margin-top:3px;line-height:1.5}
+#duluxCardPick{display:none;margin-top:8px}
+#duluxCardPick.show{display:block}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:#12202f;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;z-index:99;opacity:0;pointer-events:none;transition:.2s;max-width:88vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+footer{font-size:11px;color:var(--muted);line-height:1.65;padding:16px 4px 4px;text-align:left}
+footer b{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <h1>Dulux 取色器</h1>
+    <span class="badge" id="dbBadge">AU 官方色库</span>
+    <span class="badge" id="privacyBadge">纯本地处理</span>
+    <p class="sub">相机对准漆面 → 白卡校准 → 匹配最近的 Dulux 官方色号。所有图像只在手机本地处理，不上传。</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <div id="stage">
+      <video id="video" playsinline muted autoplay></video>
+      <canvas id="freeze"></canvas>
+      <div id="reticle"></div>
+      <div id="frozenTag">画面已冻结</div>
+      <div id="stageHint">轻点画面可移动取样框 · 避开高光、阴影和反光</div>
+      <div id="camError"></div>
+    </div>
+    <div class="statusrow">
+      <span class="pill" id="calibPill"><span class="dot"></span><span id="calibText">未校准</span></span>
+      <span class="pill" id="torchPill"><span class="dot"></span><span id="torchText">检测补光中</span></span>
+      <span class="pill" id="aePill"><span class="dot"></span><span id="aeText">自动曝光</span></span>
+      <span class="pill" id="lightPill"><span class="dot"></span><span id="lightText">待取样</span></span>
+    </div>
+    <div class="btnrow">
+      <button id="btnCalib" class="ghost">① 校准</button>
+      <button id="btnFreeze" class="ghost">冻结画面</button>
+      <button id="btnTorch" class="ghost">补光灯</button>
+      <button id="btnVerify" class="ghost">校验光照</button>
+    </div>
+    <div class="bigBtn"><button id="btnScan" class="primary wide" disabled>识别颜色</button></div>
+  </div>
+
+  <div class="card result" id="resultCard">
+    <div class="card-hd"><strong>匹配结果</strong><span class="hint" id="resultTime"></span></div>
+    <div class="card-bd">
+      <div class="compare">
+        <div class="swatch" id="swSeen"><code>相机</code><span id="hexSeen">—</span></div>
+        <div class="vs">→</div>
+        <div class="swatch" id="swMatch"><code>Dulux</code><span id="hexMatch">—</span></div>
+      </div>
+      <div class="winner">
+        <div class="nm" id="winName">—</div>
+        <div class="cd" id="winCode">—</div>
+        <div class="meta">
+          <span>色系 <b id="winFamily">—</b></span>
+          <span>色差 ΔE00 <b id="winDE">—</b></span>
+          <span>取样 <b id="winPixels">—</b> 像素</span>
+        </div>
+        <div class="conf" id="confBox"></div>
+        <div class="ctxwarn" id="contextWarn"></div>
+      </div>
+      <div class="alts">
+        <h3>其他候选</h3>
+        <div id="altList"></div>
+      </div>
+      <p class="hint" style="margin:12px 0 0">左边是你相机拍到的颜色，右边是官方色值。<b>用自己的眼睛看两块色块是否一致</b>，比任何 ΔE 数字都可靠。</p>
+    </div>
+  </div>
+
+  <details class="card settings">
+    <summary>设置 · 色库 · 使用说明</summary>
+    <div class="card-bd setgrid">
+
+      <div class="field">
+        <label>取样框大小 <span class="val" id="boxVal">64 px</span></label>
+        <input type="range" id="boxSize" min="24" max="160" step="8" value="64">
+        <div class="desc">墙面纹理粗就调大；小色块/色卡就调小。取样时会剔除最亮和最暗各 10% 的像素，压掉反光和阴影。</div>
+      </div>
+      <div class="field">
+        <label>连拍帧数 <span class="val" id="frameVal">8 帧</span></label>
+        <input type="range" id="frameCount" min="1" max="16" step="1" value="8">
+        <div class="desc">多帧在线性光域平均，降低传感器噪点。暗光下建议 12–16 帧。</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label>校准状态</label>
+        <div class="desc" id="gainInfo">未校准。强烈建议先做一次校准，否则自动白平衡会把颜色带偏。</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="btnRecalib" class="ghost" style="flex:1">重新校准</button>
+          <button id="btnClearCalib" class="ghost" style="flex:1">清除校准</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>光源与补光 <span class="val" id="torchCapVal">检测中</span></label>
+        <div class="desc">
+          <b>补光灯的作用是「把光照锁住」，不是「提供标准光源」。</b>手机闪光灯是颗便宜的白光 LED：实测不同机型显色指数从 <b>62 到 95.5</b> 不等，青光和深红波段常有缺口。这类<b>光谱缺口造成的偏色，白卡校准修不了</b>（它只校正白点，校正不了同色异谱）。而且闪光灯紧贴镜头正面直射，半光漆面容易反出过曝白斑。<br><br>
+          <b>怎么用才对：</b>环境太暗、有云影或人影晃动时开补光，把光照固定住；<b>开/关补光后必须马上重新校准白卡</b>，程序会强制作废旧校准。尽量让光斜着打（约 45°），或隔着一层薄纸巾做柔光，避开正对镜头的反光。真正要准，最稳的是<b>在最终刷漆的那个房间、那个时段、那个灯下测</b> —— 油漆本来就是在那里被看的。<br><br>
+          能力说明：Chrome 安卓可用 <kbd>getCapabilities().torch</kbd> 控制常亮补光；iOS Safari 基本不暴露；低电量或机身过热时系统会直接禁用，此时按钮会失效。
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px">
+          <button id="btnAE" class="ghost">锁定曝光</button>
+          <button id="btnFlip" class="ghost">翻转镜头</button>
+        </div>
+        <div class="desc" id="torchInfo" style="margin-top:8px"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label>色库管理 <span class="val" id="dbCount">—</span></label>
+        <div class="desc" id="dbInfo"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <button id="btnImport" class="ghost">导入色库 CSV</button>
+          <button id="btnTemplate" class="ghost">下载 CSV 模板</button>
+          <button id="btnRestore" class="ghost" style="grid-column:span 2">恢复官方 1101 色</button>
+        </div>
+        <input type="file" id="fileInput" accept=".csv,.json,.txt,text/csv,application/json">
+        <div class="tagline">CSV 表头：<kbd>code,name,hex</kbd>（可加 <kbd>family</kbd>）。也支持同结构的 JSON 数组。导入后存到本机浏览器，不会上传。中国区 <kbd>30YY 69/048</kbd> 或北美 <kbd>DLX1001-1</kbd> 的色卡可按此格式自行导入。</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label>操作步骤（决定准不准的是前两步）</label>
+        <div class="desc">
+          <b>1. 固定光照。</b>关掉混合光源，避开阳光直射和彩色反光。太暗或有晃动光影就开「补光灯」把光锁住 —— 但<b>开关补光后必须重新校准</b>。尽量在最终刷漆的房间和时段测。<br>
+          <b>2. 校准。</b>把标准白卡（或一张已知的 Dulux 白卡）放满取景框，点「① 校准」。<b>换房间、开灯、换时段、开关补光都要重校。</b><br>
+          <b>3. 校验。</b>隔一会儿或怀疑光变了，把同一张白卡放回取景框点「校验光照」。程序会用现有增益实测，ΔE>2 就说明光照漂了，别信刚才的结果，重新校准。<br>
+          <b>4. 取样。</b>镜头平行对准漆面，填满取景框，避开边界、阴影、高光。可先「冻结画面」再识别。<br>
+          <b>5. 核对。</b>看左右色块是否一致，再看 Top5 候选。<b>最终买漆前请用官方 A4 色卡或试色罐确认。</b>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>ΔE00 怎么读（人话）</label>
+        <div class="desc">ΔE 是「两个颜色差多少」的数值，已按人眼敏感度加权。<b>&lt;1</b>：放在一起几乎分不出；<b>1–2.3</b>：很接近，仔细看才分得出；<b>2.3–5</b>：明显是两个色，只能当候选；<b>&gt;5</b>：差得远，多半是没校准或打光有问题。手机屏幕本身也没校色，所以数字只用来排序，别当判决。</div>
+      </div>
+
+      <div class="field">
+        <label>这个工具做不到什么</label>
+        <div class="desc">手机 ISP 会自动改色，环境光色温、漆面光泽度、屏幕色域都会带来偏差；不同批次的漆、哑光/半光也会让同一色号看起来不同。白卡校准只做三通道增益，<b>能校正白点，不能校正低显色光源的光谱缺口</b>（同色异谱）—— 这是手机方案的天花板，分光测色仪才能解决。<b>官方自己都注明网站色值仅供参考</b>。所以这里给的是「最接近的几个候选」，不是色号鉴定结论。</div>
+      </div>
+
+      <div class="field">
+        <label>色库来源</label>
+        <div class="desc" id="sourceInfo"></div>
+      </div>
+
+    </div>
+  </details>
+
+  <footer>
+    <b>数据处理</b>：摄像头帧只在本机 canvas 内计算，不上传、不存储照片。<br>
+    <b>色库</b>：Dulux Australia 官网公开色彩目录（色名 / Atlas 编号 / sRGB 十六进制值），抓取日期 2026-11-06。色值为网页展示值，非实物分光数据。Dulux 及色名归各自权利人所有，本工具仅作检索辅助。
+  </footer>
+</div>
+
+<div class="sheet" id="calibSheet">
+  <div class="sheet-in">
+    <h2>校准白平衡</h2>
+    <p>在<b>和待识别漆面完全相同的光照</b>下，把参考卡放进取景框并填满，然后按下方按钮。校准会算出 R/G/B 三通道的增益，之后每次取样都会先做校正。</p>
+    <div id="calibTorchNote" style="font-size:11.5px;line-height:1.6;background:#fff8e8;border-left:3px solid #e0aa2c;padding:8px 10px;border-radius:7px;margin:-6px 0 12px"></div>
+    <label class="radio sel" id="modeWhite">
+      <b>标准白卡 / 灰卡</b>
+      <small>推荐用 X-Rite、Datacolor 一类无荧光白卡。普通打印纸含荧光增白剂，在日光灯下会偏蓝，只能凑合。</small>
+    </label>
+    <label class="radio" id="modeDulux">
+      <b>用一张已知的 Dulux 白卡校准（更贴合官方色值）</b>
+      <small>选你手上那张实体色卡的色号，程序直接以该色的官方色值为校正目标，同时抵消相机偏色和官方色值之间的偏差。</small>
+    </label>
+    <div id="duluxCardPick">
+      <input type="search" id="cardSearch" placeholder="搜索色名或 Atlas 编号，例如 Vivid White / SW1G1">
+      <div id="cardList" style="max-height:190px;overflow:auto;margin-top:6px;border:1px solid var(--line);border-radius:9px"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button id="btnCalibCancel" class="ghost" style="flex:1">取消</button>
+      <button id="btnCalibRun" class="primary" style="flex:2">执行校准</button>
+    </div>
+    <p style="margin:12px 0 0;font-size:11px">提示：校准卡不要过曝。如果取景框里出现纯白 <kbd>#ffffff</kbd>，换个角度避开反光再校准。</p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>/*__ENGINE__*/</script>
+<script>/*__DB__*/</script>
+<script>
+(function(){
+'use strict';
+var E = window.ColorEngine;
+var $ = function(id){ return document.getElementById(id); };
+var OFFICIAL = window.DULUX_DB;
+
+var S = {
+  stream:null, track:null, facing:'environment', frozen:false, frozenData:null,
+  gains:null, calibLabel:'', calibMode:'white', cardTarget:null,
+  db:[], dbLabel:'official', customDb:null, settings:{box:64, frames:8},
+  fx:0.5, fy:0.5, busy:false, aeLocked:false,
+  torchOn:false, torchSupported:false, calibContext:null, invalidReason:''
+};
+
+/* A calibration is only valid for the light it was made under. Any change to
+ * the light source (torch on/off, camera restart, long elapsed time) invalidates it. */
+function calibTarget(){
+  if(S.calibMode==='dulux' && S.cardTarget) return S.cardTarget;
+  return [246,246,246];
+}
+function invalidateCalib(reason){
+  if(!S.gains && S.invalidReason===reason) return;
+  S.gains=null; S.calibContext=null; S.invalidReason=reason;
+  save(); syncCalibUI();
+}
+
+/* ---------- persistence ---------- */
+function load(){
+  try{
+    var raw = JSON.parse(localStorage.getItem('dulux_scan_v1')||'{}');
+    if(raw.gains && raw.gains.length===3) {
+      S.gains=raw.gains; S.calibLabel=raw.calibLabel||'已校准';
+      S.calibContext=raw.calibContext||null;
+    }
+    if(raw.settings){ S.settings.box=+raw.settings.box||64; S.settings.frames=+raw.settings.frames||8; }
+    if(raw.customDb && raw.customDb.length){ S.customDb=raw.customDb; }
+    // A reload always closes the torch. A calibration made under torch is now void.
+    if(S.gains && S.calibContext && S.calibContext.torch){
+      S.gains=null; S.calibContext=null;
+      S.invalidReason='上次校准是在补光灯下做的，页面重载后补光已关闭';
+    }
+  }catch(e){}
+}
+function save(){
+  try{
+    localStorage.setItem('dulux_scan_v1', JSON.stringify({
+      gains:S.gains, calibLabel:S.calibLabel, calibContext:S.calibContext, settings:S.settings,
+      customDb: S.dbLabel==='custom' ? S.db.map(function(c){return {code:c.code,name:c.name,hex:c.hex,family:c.family};}) : null
+    }));
+  }catch(e){}
+}
+function buildDb(raw){
+  return raw.map(function(c){
+    var lab = E.hexToLab(c.hex);
+    return lab ? {code:c.code, name:c.name, hex:c.hex, family:c.family||'', lab:lab} : null;
+  }).filter(Boolean);
+}
+function setOfficial(){
+  S.db = buildDb(OFFICIAL.colours.map(function(c){
+    return {code:c[0],name:c[1],hex:c[2],family:OFFICIAL.families[c[3]]};
+  }));
+  S.dbLabel='official';
+  $('dbBadge').textContent='AU 官方色库 '+S.db.length+' 色';
+  $('dbBadge').className='badge';
+}
+function syncDbUI(){
+  $('dbCount').textContent=S.db.length+' 色';
+  $('dbInfo').textContent = S.dbLabel==='official'
+    ? '当前：Dulux Australia 官方公开色彩目录，'+S.db.length+' 个 Atlas 色号，已内嵌可离线使用。'
+    : '当前：你导入的自定义色库，'+S.db.length+' 色（存在本机浏览器）。点「恢复官方 1101 色」可切回。';
+  $('sourceInfo').textContent = S.dbLabel==='official'
+    ? 'dulux.com.au 的 9 个色系目录（Whites & Neutrals / Greys / Browns / Purples / Blues / Greens / Yellows / Oranges / Reds），共 '+S.db.length+' 色。抽样交叉核对：Vivid White™ SW1G1 = #f7f8f4，与官方单色页一致。地区体系不同：中国站用 30YY 69/048 式编码，北美站用 DLX1001-1，均可通过 CSV 导入。'
+    : '自定义导入色库。请以你手上的官方色卡为准，网页色值仅为参考。';
+}
+
+/* ---------- ui helpers ---------- */
+var toastTimer;
+function toast(msg){
+  var t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove('show'); },2600);
+}
+function syncCalibUI(){
+  var p=$('calibPill');
+  if(S.gains){
+    p.classList.add('on'); p.classList.remove('warn');
+    $('calibText').textContent='已校准'+(S.calibLabel?' · '+S.calibLabel:'');
+    var age=S.calibContext ? Math.round((Date.now()-S.calibContext.time)/60000) : null;
+    $('gainInfo').textContent='当前增益 R '+S.gains[0].toFixed(3)+' / G '+S.gains[1].toFixed(3)+' / B '+S.gains[2].toFixed(3)+'。'+
+      (S.calibLabel||'')+'。校准于'+(age===null?'未知时间':(age<1?'刚刚':age+' 分钟前'))+
+      '，'+(S.calibContext&&S.calibContext.torch?'补光开':'补光关')+'。换光源、开关补光或隔一段时间请用「校验光照」复核。';
+  }else{
+    p.classList.remove('on');
+    p.classList.toggle('warn',!!S.invalidReason);
+    $('calibText').textContent=S.invalidReason?'校准已失效':'未校准';
+    $('gainInfo').textContent=S.invalidReason
+      ? '⚠ '+S.invalidReason+'，请重新校准白卡。'
+      : '未校准。强烈建议先做一次校准，否则自动白平衡会把颜色带偏。';
+  }
+}
+function syncTorch(){
+  var p=$('torchPill'), b=$('btnTorch');
+  p.classList.toggle('torch',S.torchOn);
+  $('torchText').textContent = !S.torchSupported ? '补光不可用' : (S.torchOn?'补光已开 · 需重校':'补光关闭');
+  b.disabled=!S.torchSupported;
+  b.classList.toggle('torch-on',S.torchOn);
+  b.textContent=S.torchOn?'补光灯 开':'补光灯';
+  $('torchCapVal').textContent = S.torchSupported ? (S.torchOn?'已开启':'可用') : '不支持';
+  $('torchInfo').textContent = S.torchSupported
+    ? '这台设备允许网页控制常亮补光。注意：补光是稳定光照的手段，不是标准光源。'
+    : '当前浏览器/镜头未提供 torch 能力（iOS Safari、前置镜头、桌面浏览器常见）。可以用外部台灯加柔光代替，操作时同样要在该光照下重新校准。';
+  $('calibTorchNote').innerHTML = S.torchOn
+    ? '<b>补光灯当前开着。</b>请保持开启状态，用白卡在<b>这个补光下</b>完成校准。测色期间不要关灯。'
+    : '<b>补光灯当前关闭。</b>若测色时打算开补光，请先打开再校准；开关补光会让已有校准立即作废。';
+}
+function detectTorch(){
+  S.torchOn=false; S.torchSupported=false;
+  try{
+    var caps=S.track && S.track.getCapabilities ? S.track.getCapabilities() : {};
+    S.torchSupported = caps.torch!==undefined && caps.torch!==false;
+  }catch(e){ S.torchSupported=false; }
+  syncTorch();
+  // Changing the camera track changes the light. Any stored calibration is stale.
+  if(S.gains) invalidateCalib('镜头/相机已重启，光照条件可能变了');
+}
+async function toggleTorch(){
+  if(!S.track || !S.torchSupported){ toast('这台设备或浏览器不提供网页补光控制'); return; }
+  var next=!S.torchOn;
+  try{
+    await S.track.applyConstraints({advanced:[{torch:next}]});
+    S.torchOn=next;
+    if(S.gains) invalidateCalib('补光灯状态已改变');
+    syncTorch();
+    toast(next?'补光已开 · 原校准作废，请重新校准':'补光已关 · 原校准作废，请重新校准');
+  }catch(err){
+    toast('补光切换失败：'+((err&&err.name)||'设备拒绝')+'（低电量或机身过热时系统会禁用闪光灯）');
+  }
+}
+/* Re-measure the reference card with the CURRENT gains. If it no longer lands on
+ * the calibration target, the light has drifted and the calibration is stale. */
+async function verifyCalibration(){
+  if(S.busy) return;
+  if(!S.gains){ toast(S.invalidReason||'请先完成一次白卡校准'); return; }
+  S.busy=true; $('btnVerify').disabled=true;
+  try{
+    var s=await sampleMulti(Math.max(6,S.settings.frames));
+    if(!s){ toast('取样失败'); return; }
+    var target=calibTarget();
+    var measured=E.applyGains(s.rgb,S.gains);
+    var dE=E.ciede2000(E.rgbToLab(measured),E.rgbToLab(target));
+    if(dE<2){
+      if(S.calibContext) S.calibContext.time=Date.now();
+      else S.calibContext={torch:S.torchOn,time:Date.now(),target:target,sourceLum:0};
+      save(); syncCalibUI();
+      toast('校准仍有效 · 白卡偏差 ΔE '+dE.toFixed(2)+'，可以继续测');
+    }else{
+      invalidateCalib('白卡实测偏差 ΔE '+dE.toFixed(2)+'，光照已经变了');
+      toast('光照漂了 · ΔE '+dE.toFixed(2)+'。原校准作废，请重新校准');
+    }
+  }finally{ S.busy=false; $('btnVerify').disabled=false; }
+}
+function contextWarnings(){
+  var w=[];
+  if(!S.gains){ w.push('尚未校准白卡，这次结果只作参考，颜色大概率是偏的。'); return w; }
+  if(S.calibContext){
+    if(typeof S.calibContext.torch==='boolean' && S.calibContext.torch!==S.torchOn)
+      w.push('补光状态与校准时不一致，必须重新校准。');
+    if(S.calibContext.time){
+      var age=(Date.now()-S.calibContext.time)/60000;
+      if(age>15) w.push('距上次校准已 '+Math.round(age)+' 分钟，光照可能变了，建议点「校验光照」复核。');
+    }
+  }
+  return w;
+}
+
+/* ---------- camera ---------- */
+var video=$('video'), capture=document.createElement('canvas');
+var cctx=capture.getContext('2d',{willReadFrequently:true});
+var freezeCanvas=$('freeze');
+
+async function startCamera(){
+  stopCamera();
+  $('camError').style.display='none';
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    $('camError').style.display='block';
+    $('camError').innerHTML='打不开相机：当前环境不是安全上下文。<br>安卓请用 <b>Chrome / Edge</b> 打开 <b>https://</b> 链接，直接打开本地 html 文件会被浏览器拒绝。';
+    return;
+  }
+  try{
+    var stream=await navigator.mediaDevices.getUserMedia({
+      audio:false,
+      video:{ facingMode:{ideal:S.facing}, width:{ideal:1920}, height:{ideal:1080} }
+    });
+    S.stream=stream;
+    S.track=stream.getVideoTracks()[0];
+    video.srcObject=stream;
+    await video.play();
+    capture.width=video.videoWidth; capture.height=video.videoHeight;
+    freezeCanvas.width=video.videoWidth; freezeCanvas.height=video.videoHeight;
+    $('btnScan').disabled=false;
+    S.aeLocked=false; syncAE();
+    detectTorch();
+  }catch(err){
+    $('camError').style.display='block';
+    $('camError').innerHTML='相机启动失败：'+(err && err.name ? err.name : err)+'<br>请允许摄像头权限；若在安卓上，确认用 https 打开并允许相机权限。';
+    console.error(err);
+  }
+}
+function stopCamera(){
+  if(S.stream){ S.stream.getTracks().forEach(function(t){t.stop();}); S.stream=null; S.track=null; }
+}
+function syncAE(){
+  var p=$('aePill');
+  p.classList.toggle('on',S.aeLocked);
+  $('aeText').textContent=S.aeLocked?'曝光/白平衡已锁':'自动曝光';
+}
+
+/* Map a point in the displayed (object-fit:cover) stage back to video pixel coords. */
+function stageToVideo(px,py){
+  var st=$('stage'), cw=st.clientWidth, ch=st.clientHeight;
+  var vw=capture.width, vh=capture.height;
+  var scale=Math.max(cw/vw, ch/vh);
+  var offX=(cw-vw*scale)/2, offY=(ch-vh*scale)/2;
+  return {x:(px-offX)/scale, y:(py-offY)/scale, scale:scale};
+}
+function placeReticle(){
+  var st=$('stage');
+  $('reticle').style.left=(S.fx*100)+'%';
+  $('reticle').style.top=(S.fy*100)+'%';
+  $('reticle').style.width=S.settings.box+'px';
+  $('reticle').style.height=S.settings.box+'px';
+  document.documentElement.style.setProperty('--box',S.settings.box+'px');
+}
+function currentImageData(){
+  if(S.frozen && S.frozenData) return S.frozenData;
+  if(!video.videoWidth) return null;
+  cctx.drawImage(video,0,0,capture.width,capture.height);
+  return cctx.getImageData(0,0,capture.width,capture.height);
+}
+
+/* Grab N frames and average in LINEAR light (physically correct for averaging light). */
+var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+async function sampleMulti(frames){
+  var acc=[0,0,0], n=0, pixels=0;
+  for(var i=0;i<frames;i++){
+    var img=currentImageData();
+    if(!img) return null;
+    var pt=stageToVideo(S.fx*$('stage').clientWidth, S.fy*$('stage').clientHeight);
+    var boxVideo=S.settings.box/(pt.scale||1);
+    var s=E.sampleRegion(img,pt.x,pt.y,boxVideo,0.10);
+    if(!s) return null;
+    acc[0]+=E.srgbToLinear(s.rgb[0]); acc[1]+=E.srgbToLinear(s.rgb[1]); acc[2]+=E.srgbToLinear(s.rgb[2]);
+    pixels=s.pixels; n++;
+    if(i<frames-1 && !(S.frozen && S.frozenData)) await sleep(65);
+  }
+  return {
+    rgb:[E.linearToSrgb(acc[0]/n),E.linearToSrgb(acc[1]/n),E.linearToSrgb(acc[2]/n)],
+    pixels:pixels, frames:n
+  };
+}
+
+/* ---------- main actions ---------- */
+async function calibrate(){
+  if(S.busy) return;
+  if(S.calibMode==='dulux' && !S.cardTarget){ toast('先从列表里选一张你手上的 Dulux 色卡'); return; }
+  if(!video.videoWidth && !(S.frozen&&S.frozenData)){ toast('相机还没就绪'); return; }
+  S.busy=true; $('btnCalibRun').disabled=true;
+  try{
+    var s=await sampleMulti(Math.max(6,S.settings.frames));
+    if(!s){ toast('取样失败'); return; }
+    // Guard against a clipped / blown-out reference card.
+    var mx=Math.max.apply(null,s.rgb);
+    if(mx>=252){ toast('参考卡过曝了，避开反光再来一次'); return; }
+    var target=calibTarget();
+    S.gains=E.computeWhiteGains(s.rgb,target);
+    S.calibLabel = S.calibMode==='dulux' ? 'Dulux '+(S.cardTargetName||'色卡') : '标准白卡';
+    S.calibContext={torch:S.torchOn, time:Date.now(), target:target, sourceLum:0.2126*s.rgb[0]+0.7152*s.rgb[1]+0.0722*s.rgb[2]};
+    S.invalidReason='';
+    save(); syncCalibUI(); syncTorch();
+    $('calibSheet').classList.remove('open');
+    toast('校准完成 · 增益 '+S.gains.map(function(g){return g.toFixed(2);}).join(' / ')+(S.torchOn?' · 补光下':''));
+  }finally{ S.busy=false; $('btnCalibRun').disabled=false; }
+}
+
+async function scan(){
+  if(S.busy) return;
+  S.busy=true; $('btnScan').disabled=true; $('btnScan').textContent='取色中…';
+  try{
+    var s=await sampleMulti(S.settings.frames);
+    if(!s){ toast('取样失败，检查相机权限'); return; }
+    var corrected=E.applyGains(s.rgb,S.gains);
+    var lab=E.rgbToLab(corrected);
+    var top=E.match(lab,S.db,5);
+    if(!top.length){ toast('色库为空，请导入色库'); return; }
+    renderResult(corrected,s,top,contextWarnings());
+    var lum=0.2126*corrected[0]+0.7152*corrected[1]+0.0722*corrected[2];
+    $('lightPill').classList.toggle('on',lum>55 && lum<225);
+    $('lightText').textContent = lum<55 ? '偏暗 · 建议补光' : (lum>225 ? '偏亮 · 小心过曝' : '亮度合适');
+  }finally{
+    S.busy=false; $('btnScan').disabled=false; $('btnScan').textContent='识别颜色';
+  }
+}
+
+function renderResult(rgb,s,top,warnings){
+  $('resultCard').classList.add('show');
+  $('swSeen').style.background=E.rgbToHex(rgb);
+  $('hexSeen').textContent=E.rgbToHex(rgb).toUpperCase()+' · RGB('+rgb.map(function(v){return Math.round(v);}).join(',')+')';
+  $('swMatch').style.background=top[0].hex;
+  $('hexMatch').textContent=top[0].hex.toUpperCase();
+  $('winName').textContent=top[0].name;
+  $('winCode').textContent=top[0].code;
+  $('winFamily').textContent=top[0].family||'—';
+  $('winDE').textContent=top[0].dE.toFixed(2);
+  $('winPixels').textContent=s.pixels+' × '+s.frames+'帧';
+  var c=E.confidence(top[0].dE);
+  var box=$('confBox');
+  box.className='conf '+c.level;
+  box.innerHTML='<b>'+c.label+'</b> · '+c.text+'<small>若 ΔE 偏大：先重新校准白卡，再检查是否有混合光源、反光或漆面纹理。相邻候选色差很小时，以实物色卡为准。</small>';
+  var cw=$('contextWarn');
+  cw.classList.toggle('show',!!(warnings&&warnings.length));
+  cw.innerHTML = warnings&&warnings.length
+    ? '<b>光照/校准警告</b><br>'+warnings.map(esc).join('<br>')+'<br><span style="font-size:11px">把白卡放回取景框点「校验光照」可实测确认。</span>'
+    : '';
+  $('resultTime').textContent=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  $('altList').innerHTML=top.slice(1).map(function(t){
+    return '<div class="alt"><div class="chip" style="background:'+t.hex+'"></div>'+
+      '<div class="txt"><b>'+esc(t.name)+'</b><small>'+esc(t.code)+' · '+t.hex.toUpperCase()+'</small></div>'+
+      '<div class="de">ΔE '+t.dE.toFixed(2)+'</div></div>';
+  }).join('');
+}
+function esc(s){ return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+function toggleFreeze(){
+  if(!S.frozen){
+    if(!video.videoWidth){ toast('相机还没就绪'); return; }
+    var fctx=freezeCanvas.getContext('2d',{willReadFrequently:true});
+    freezeCanvas.width=video.videoWidth; freezeCanvas.height=video.videoHeight;
+    fctx.drawImage(video,0,0);
+    S.frozenData=fctx.getImageData(0,0,freezeCanvas.width,freezeCanvas.height);
+    S.frozen=true;
+    $('stage').classList.add('frozen');
+    $('btnFreeze').textContent='解冻画面';
+    toast('已冻结 · 现在可以移开手机慢慢核对');
+  }else{
+    S.frozen=false; S.frozenData=null;
+    $('stage').classList.remove('frozen');
+    $('btnFreeze').textContent='冻结画面';
+  }
+}
+
+async function toggleAE(){
+  if(!S.track){ toast('相机还没就绪'); return; }
+  try{
+    var caps=S.track.getCapabilities?S.track.getCapabilities():{};
+    var c=S.track.getConstraints();
+    var adv=[];
+    if(caps.whiteBalanceMode) adv.push({whiteBalanceMode:S.aeLocked?'continuous':'manual'});
+    if(caps.exposureMode) adv.push({exposureMode:S.aeLocked?'continuous':'manual'});
+    if(caps.focusMode) adv.push({focusMode:S.aeLocked?'continuous':'manual'});
+    if(!adv.length){ toast('这台设备/浏览器不提供手动曝光接口，请用「冻结画面」稳住画面'); return; }
+    await S.track.applyConstraints({advanced:adv});
+    S.aeLocked=!S.aeLocked; syncAE();
+    toast(S.aeLocked?'已尝试锁定曝光/白平衡':'已恢复自动');
+  }catch(err){
+    toast('锁定失败：'+((err&&err.name)||'不支持'));
+  }
+}
+
+/* ---------- calibration sheet ---------- */
+function openCalib(){
+  syncTorch();
+  $('calibSheet').classList.add('open');
+  renderCardList('');
+}
+function setMode(m){
+  S.calibMode=m;
+  $('modeWhite').classList.toggle('sel',m==='white');
+  $('modeDulux').classList.toggle('sel',m==='dulux');
+  $('duluxCardPick').classList.toggle('show',m==='dulux');
+}
+function renderCardList(q){
+  q=(q||'').trim().toLowerCase();
+  var pool=S.db.filter(function(c){
+    return c.lab[0]>86 && /white|snow|polar|ivory|cream|linen|vivid|natural white|lexicon/i.test(c.name+' '+c.code);
+  });
+  if(q) pool=pool.filter(function(c){ return (c.name+' '+c.code).toLowerCase().indexOf(q)>=0; });
+  pool=pool.slice(0,60);
+  $('cardList').innerHTML=pool.map(function(c){
+    var sel=S.cardTarget && S.cardTarget[0]===E.hexToRgb(c.hex)[0] && S.cardTarget[2]===E.hexToRgb(c.hex)[2];
+    return '<label class="radio" style="margin:0;border:0;border-bottom:1px solid #eef2f6;border-radius:0;padding:9px 11px;display:flex;align-items:center;gap:9px;'+(sel?'background:#f2f7fd':'')+'" data-code="'+esc(c.code)+'" data-hex="'+c.hex+'">'+
+      '<span style="width:26px;height:26px;border-radius:6px;border:1px solid #ccd5de;background:'+c.hex+';flex:none"></span>'+
+      '<span style="flex:1"><b style="font-size:12.5px">'+esc(c.name)+'</b><small style="font-size:10.5px">'+esc(c.code)+' · '+c.hex.toUpperCase()+'</small></span></label>';
+  }).join('') || '<div style="padding:12px;font-size:12px;color:#5c6b7a">没找到。可直接在设置里导入你自己的色卡色号。</div>';
+  Array.prototype.forEach.call($('cardList').querySelectorAll('label'),function(el){
+    el.addEventListener('click',function(){
+      S.cardTarget=E.hexToRgb(el.dataset.hex);
+      S.cardTargetName=el.dataset.code;
+      renderCardList($('cardSearch').value);
+      toast('已选 '+el.dataset.code);
+    });
+  });
+}
+
+/* ---------- csv / json import ---------- */
+function parseCSV(text){
+  var rows=[],row=[],cur='',q=false;
+  text=text.replace(/^\uFEFF/,'');
+  for(var i=0;i<text.length;i++){
+    var ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
+      else cur+=ch;
+    }else{
+      if(ch==='"') q=true;
+      else if(ch===','){ row.push(cur);cur=''; }
+      else if(ch==='\n'){ row.push(cur);rows.push(row);row=[];cur=''; }
+      else if(ch!=='\r') cur+=ch;
+    }
+  }
+  if(cur.length||row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(function(r){ return r.some(function(c){return c.trim();}); });
+}
+function rowsToDb(rows){
+  var head=rows[0].map(function(x){return x.trim().toLowerCase();});
+  var ci=head.indexOf('code'), ni=head.indexOf('name'), hi=head.indexOf('hex'), fi=head.indexOf('family');
+  if(hi<0 || (ci<0&&ni<0)) throw new Error('表头需要 code,name,hex 三列');
+  var out=[];
+  for(var i=1;i<rows.length;i++){
+    var r=rows[i]; if(!r[hi]) continue;
+    var hex=r[hi].trim();
+    if(hex[0]!=='#') hex='#'+hex;
+    if(!E.hexToRgb(hex)) continue;
+    out.push({code:(ci>=0?r[ci]:'').trim()||('C'+i), name:(ni>=0?r[ni]:'').trim()||('Colour '+i), hex:hex.toLowerCase(), family:(fi>=0?r[fi]:'').trim()});
+  }
+  return out;
+}
+function downloadTemplate(){
+  var csv='code,name,hex,family\nSW1G1,Vivid White,#f7f8f4,whites-and-neutrals\n30YY 69/048,浅滩银珠,#d8d3c4,cn\nDLX1001-1,Delicate White,#f1f2ee,ca\n';
+  var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='dulux-colour-template.csv'; a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+}
+
+/* ---------- wire up ---------- */
+function bind(){
+  $('btnScan').addEventListener('click',scan);
+  $('btnCalib').addEventListener('click',openCalib);
+  $('btnRecalib').addEventListener('click',openCalib);
+  $('btnClearCalib').addEventListener('click',function(){ S.gains=null;S.calibLabel='';S.calibContext=null;S.invalidReason='';save();syncCalibUI();toast('已清除校准'); });
+  $('btnFreeze').addEventListener('click',toggleFreeze);
+  $('btnFlip').addEventListener('click',function(){ S.facing=S.facing==='environment'?'user':'environment'; startCamera(); });
+  $('btnAE').addEventListener('click',toggleAE);
+  $('btnTorch').addEventListener('click',toggleTorch);
+  $('btnVerify').addEventListener('click',verifyCalibration);
+  $('btnCalibCancel').addEventListener('click',function(){ $('calibSheet').classList.remove('open'); });
+  $('calibSheet').addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
+  $('btnCalibRun').addEventListener('click',calibrate);
+  $('modeWhite').addEventListener('click',function(){ setMode('white'); });
+  $('modeDulux').addEventListener('click',function(){ setMode('dulux'); });
+  $('cardSearch').addEventListener('input',function(){ renderCardList(this.value); });
+
+  $('boxSize').addEventListener('input',function(){ S.settings.box=+this.value; $('boxVal').textContent=this.value+' px'; placeReticle(); save(); });
+  $('frameCount').addEventListener('input',function(){ S.settings.frames=+this.value; $('frameVal').textContent=this.value+' 帧'; save(); });
+
+  $('stage').addEventListener('pointerdown',function(e){
+    var r=this.getBoundingClientRect();
+    S.fx=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+    S.fy=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+    placeReticle();
+  });
+
+  $('btnImport').addEventListener('click',function(){ $('fileInput').click(); });
+  $('btnTemplate').addEventListener('click',downloadTemplate);
+  $('btnRestore').addEventListener('click',function(){ setOfficial(); save(); syncDbUI(); renderCardList(''); toast('已恢复官方色库'); });
+  $('fileInput').addEventListener('change',function(e){
+    var f=e.target.files[0]; if(!f) return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      try{
+        var txt=String(rd.result), rows;
+        if(/^\s*[\[{]/.test(txt)){
+          var j=JSON.parse(txt); var arr=Array.isArray(j)?j:(j.colours||[]);
+          rows=[['code','name','hex','family']].concat(arr.map(function(c){
+            return Array.isArray(c)?[c[0],c[1],c[2],c[3]||'']:[c.code||'',c.name||'',c.hex||'',c.family||''];
+          }));
+        } else rows=parseCSV(txt);
+        var parsed=rowsToDb(rows);
+        if(!parsed.length) throw new Error('没解析出有效颜色');
+        S.db=buildDb(parsed); S.dbLabel='custom';
+        $('dbBadge').textContent='自定义色库 '+S.db.length+' 色';
+        $('dbBadge').className='badge custom';
+        save(); syncDbUI(); renderCardList('');
+        toast('已导入 '+S.db.length+' 色');
+      }catch(err){ toast('导入失败：'+err.message); }
+    };
+    rd.readAsText(f,'utf-8');
+    e.target.value='';
+  });
+}
+
+function init(){
+  load();
+  if(S.customDb && S.customDb.length){
+    S.db=buildDb(S.customDb); S.dbLabel='custom';
+    $('dbBadge').textContent='自定义色库 '+S.db.length+' 色';
+    $('dbBadge').className='badge custom';
+  }else{
+    setOfficial();
+  }
+  syncDbUI(); syncCalibUI(); syncAE(); syncTorch();
+  $('boxSize').value=S.settings.box; $('boxVal').textContent=S.settings.box+' px';
+  $('frameCount').value=S.settings.frames; $('frameVal').textContent=S.settings.frames+' 帧';
+  placeReticle();
+  bind();
+  startCamera();
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js?sharecode=__SHARECODE__').catch(function(){}); }
+}
+document.addEventListener('DOMContentLoaded',init);
+})();
+</script>
+</body>
+</html>

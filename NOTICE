@@ -1,0 +1,28 @@
+Dulux Colour Scanner - THIRD-PARTY DATA NOTICE
+=============================================
+
+The MIT licence (LICENSE) applies ONLY to the original source code in this
+repository: color-engine.js, app-template.html, build.py, test-*.js, and the
+generated dist/ markup and scripts, to the extent they are original work.
+
+It does NOT apply to the following third-party material:
+
+  * dulux-db.json, dulux-au-colours.csv, dist/dulux-au-colours.csv, and the
+    1,101 colour records embedded in dist/index.html.
+    These are colour names, Atlas codes and sRGB hex display values taken from
+    the PUBLIC colour directory pages of dulux.com.au on 2026-11-06.
+
+Dulux, the Dulux name, colour names, fan deck / Atlas codes and all related
+trademarks remain the property of AkzoNobel / DuluxGroup or their respective
+owners. No endorsement or affiliation is claimed. The colour values are web
+display values, NOT spectrophotometric measurements; the official site itself
+states that on-screen colours are a guide only and recommends verifying with a
+physical A4 swatch or sample pot.
+
+This repository is a NON-COMMERCIAL technical demonstration of colour
+calibration and colour-difference maths. Before any commercial use:
+  1. replace the colour database with data you are licensed to use, and
+  2. remove the Dulux name and trademarks from the product and its metadata.
+
+For colour-engine.js the CIEDE2000 implementation follows Sharma, Wu & Dalal
+(2005); the 14 reference pairs used in test-engine.js come from that paper.

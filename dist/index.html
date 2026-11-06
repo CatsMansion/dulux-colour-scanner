@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#002C65">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json?sharecode=PQPJUV7IVW">
+<link rel="icon" href="icon-192.png?sharecode=PQPJUV7IVW">
+<link rel="apple-touch-icon" href="icon-192.png?sharecode=PQPJUV7IVW">
+<title>Dulux 取色器 · 相机识别油漆颜色</title>
+<style>
+:root{
+  --brand:#002C65; --brand-2:#1D4B73; --ink:#12202f; --muted:#5c6b7a;
+  --line:#dce3ea; --bg:#f4f6f8; --card:#ffffff; --sand:#EEECE6;
+  --ok:#0f7b4a; --warn:#a8650b; --bad:#b3261e;
+  --box:64px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  padding-bottom:calc(24px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:560px;margin:0 auto;padding:0 12px}
+header{
+  background:var(--brand); color:#fff;
+  padding:calc(12px + env(safe-area-inset-top)) 12px 14px;
+}
+header .inner{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.3px}
+.badge{font-size:11px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);white-space:nowrap}
+.badge.custom{background:#f6c352;color:#3a2800;border-color:#e0aa2c}
+.sub{font-size:11.5px;opacity:.82;margin:5px 0 0;max-width:560px;margin-left:auto;width:100%}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-top:12px;overflow:hidden;box-shadow:0 1px 3px rgba(16,32,48,.05)}
+.card-hd{padding:11px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-hd strong{font-size:13px;font-weight:650}
+.card-bd{padding:12px 14px}
+
+#stage{position:relative;background:#101820;aspect-ratio:4/3;overflow:hidden;touch-action:none}
+#stage video,#stage #freeze{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+#stage #freeze{display:none}
+#stage.frozen #freeze{display:block}
+#stage.frozen video{visibility:hidden}
+#reticle{
+  position:absolute;width:var(--box);height:var(--box);left:50%;top:50%;transform:translate(-50%,-50%);
+  border:2px solid #fff;border-radius:5px;box-shadow:0 0 0 2px rgba(0,0,0,.5),inset 0 0 0 1px rgba(0,0,0,.35);
+  pointer-events:none;transition:width .15s,height .15s
+}
+#reticle:before,#reticle:after{content:"";position:absolute;background:rgba(255,255,255,.9)}
+#reticle:before{left:50%;top:50%;width:14px;height:1px;transform:translate(-50%,-50%)}
+#reticle:after{left:50%;top:50%;width:1px;height:14px;transform:translate(-50%,-50%)}
+#stageHint{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#fff;font-size:11.5px;text-shadow:0 1px 4px #000;pointer-events:none}
+#frozenTag{position:absolute;top:8px;left:8px;background:#f6c352;color:#3a2800;font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;display:none}
+#stage.frozen #frozenTag{display:block}
+#camError{padding:26px 16px;text-align:center;color:#cbd5e1;display:none;font-size:13px;line-height:1.7}
+
+.statusrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;padding:9px 12px;background:#f9fbfc;border-bottom:1px solid var(--line)}
+.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:99px;padding:3px 9px;background:#fff;color:var(--muted)}
+.pill.on{background:#e8f5ee;border-color:#a9d9c1;color:var(--ok)}
+.pill.warn{background:#fdf4e3;border-color:#e8c98a;color:var(--warn)}
+.pill.torch{background:#fff3cf;border-color:#e9c67a;color:#8a5a00}
+.pill.torch .dot{background:#e0a02c}
+.dot{width:7px;height:7px;border-radius:50%;background:#9aa8b6}
+.pill.on .dot{background:var(--ok)}
+button.torch-on{background:#f6c352;border-color:#e0aa2c;color:#3a2800}
+.ctxwarn{margin-top:9px;padding:9px 11px;border-radius:9px;background:#fdecea;border-left:3px solid var(--bad);font-size:12.5px;line-height:1.55;display:none}
+.ctxwarn.show{display:block}
+.ctxwarn b{color:var(--bad)}
+
+.btnrow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:10px 6px;font-size:12.5px;font-weight:600;min-height:44px;transition:transform .06s,background .15s}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff;font-size:15px;font-weight:700;padding:14px 8px;min-height:54px}
+button.primary:disabled{background:#7e93aa;border-color:#7e93aa}
+button.ghost{background:#f7f9fb}
+button.danger{color:var(--bad);border-color:#eec9c5}
+button.wide{width:100%}
+.bigBtn{padding:0 12px 12px}
+.hint{font-size:11.5px;color:var(--muted);line-height:1.6}
+
+.result{display:none}
+.result.show{display:block}
+.compare{display:flex;gap:10px;align-items:stretch}
+.swatch{flex:1;border-radius:11px;border:1px solid rgba(0,0,0,.1);min-height:104px;position:relative;overflow:hidden}
+.swatch span{position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.9);color:#1a2733;font-size:10.5px;font-weight:700;text-align:center;padding:5px 2px;letter-spacing:.3px}
+.swatch code{position:absolute;top:7px;left:8px;background:rgba(255,255,255,.88);border-radius:5px;padding:2px 6px;font-size:10.5px;color:#1a2733;font-family:ui-monospace,Consolas,monospace}
+.vs{align-self:center;font-size:11px;color:var(--muted);font-weight:700}
+.winner{margin-top:12px}
+.winner .nm{font-size:19px;font-weight:700;line-height:1.25}
+.winner .cd{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:var(--brand-2);margin-top:2px}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;font-size:11.5px;color:var(--muted)}
+.meta b{font-weight:700;color:var(--ink)}
+.conf{margin-top:10px;padding:9px 11px;border-radius:9px;font-size:12.5px;line-height:1.5;background:#eef3f8;border-left:3px solid var(--brand-2)}
+.conf.great{background:#e8f5ee;border-color:var(--ok)}
+.conf.good{background:#eef7ef;border-color:#3c9a62}
+.conf.fair{background:#fdf4e3;border-color:var(--warn)}
+.conf.poor{background:#fdecea;border-color:var(--bad)}
+.conf small{display:block;opacity:.78;font-size:11px;margin-top:2px}
+
+.alts{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.alts h3{font-size:11.5px;color:var(--muted);margin:0 0 8px;font-weight:650;letter-spacing:.5px;text-transform:uppercase}
+.alt{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f0f3f6}
+.alt:last-child{border-bottom:0}
+.alt .chip{width:38px;height:38px;border-radius:8px;border:1px solid rgba(0,0,0,.12);flex:none}
+.alt .txt{flex:1;min-width:0}
+.alt .txt b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alt .txt small{color:var(--muted);font-size:11px;font-family:ui-monospace,Consolas,monospace}
+.alt .de{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+
+details.settings summary{padding:12px 14px;font-size:13px;font-weight:650;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.settings summary::-webkit-details-marker{display:none}
+details.settings summary:after{content:"▾";color:var(--muted);font-size:14px}
+details.settings[open] summary:after{content:"▴"}
+details.settings[open] summary{border-bottom:1px solid var(--line)}
+.setgrid{display:grid;gap:12px}
+.field label{display:block;font-size:12px;font-weight:650;margin-bottom:5px}
+.field .desc{font-size:11px;color:var(--muted);font-weight:400;margin-top:3px;line-height:1.5}
+input[type=range]{width:100%;accent-color:var(--brand)}
+input[type=text],input[type=search],select{width:100%;font:inherit;font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
+input[type=file]{display:none}
+.val{float:right;color:var(--brand-2);font-family:ui-monospace,Consolas,monospace;font-size:11.5px}
+.divider{height:1px;background:var(--line);margin:2px 0}
+.tagline{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.55}
+kbd{font-family:ui-monospace,Consolas,monospace;background:#eef2f6;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:11px}
+
+.sheet{position:fixed;inset:0;background:rgba(8,18,30,.55);z-index:50;display:none;align-items:flex-end;justify-content:center}
+.sheet.open{display:flex}
+.sheet-in{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom));max-height:86vh;overflow:auto}
+.sheet h2{font-size:16px;margin:0 0 4px}
+.sheet p{font-size:12px;color:var(--muted);margin:0 0 14px;line-height:1.6}
+.radio{display:block;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:9px;cursor:pointer}
+.radio.sel{border-color:var(--brand);background:#f2f7fd}
+.radio b{display:block;font-size:13.5px}
+.radio small{display:block;color:var(--muted);font-size:11.5px;margin-top:3px;line-height:1.5}
+#duluxCardPick{display:none;margin-top:8px}
+#duluxCardPick.show{display:block}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:#12202f;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;z-index:99;opacity:0;pointer-events:none;transition:.2s;max-width:88vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+footer{font-size:11px;color:var(--muted);line-height:1.65;padding:16px 4px 4px;text-align:left}
+footer b{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <h1>Dulux 取色器</h1>
+    <span class="badge" id="dbBadge">AU 官方色库</span>
+    <span class="badge" id="privacyBadge">纯本地处理</span>
+    <p class="sub">相机对准漆面 → 白卡校准 → 匹配最近的 Dulux 官方色号。所有图像只在手机本地处理，不上传。</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <div id="stage">
+      <video id="video" playsinline muted autoplay></video>
+      <canvas id="freeze"></canvas>
+      <div id="reticle"></div>
+      <div id="frozenTag">画面已冻结</div>
+      <div id="stageHint">轻点画面可移动取样框 · 避开高光、阴影和反光</div>
+      <div id="camError"></div>
+    </div>
+    <div class="statusrow">
+      <span class="pill" id="calibPill"><span class="dot"></span><span id="calibText">未校准</span></span>
+      <span class="pill" id="torchPill"><span class="dot"></span><span id="torchText">检测补光中</span></span>
+      <span class="pill" id="aePill"><span class="dot"></span><span id="aeText">自动曝光</span></span>
+      <span class="pill" id="lightPill"><span class="dot"></span><span id="lightText">待取样</span></span>
+    </div>
+    <div class="btnrow">
+      <button id="btnCalib" class="ghost">① 校准</button>
+      <button id="btnFreeze" class="ghost">冻结画面</button>
+      <button id="btnTorch" class="ghost">补光灯</button>
+      <button id="btnVerify" class="ghost">校验光照</button>
+    </div>
+    <div class="bigBtn"><button id="btnScan" class="primary wide" disabled>识别颜色</button></div>
+  </div>
+
+  <div class="card result" id="resultCard">
+    <div class="card-hd"><strong>匹配结果</strong><span class="hint" id="resultTime"></span></div>
+    <div class="card-bd">
+      <div class="compare">
+        <div class="swatch" id="swSeen"><code>相机</code><span id="hexSeen">—</span></div>
+        <div class="vs">→</div>
+        <div class="swatch" id="swMatch"><code>Dulux</code><span id="hexMatch">—</span></div>
+      </div>
+      <div class="winner">
+        <div class="nm" id="winName">—</div>
+        <div class="cd" id="winCode">—</div>
+        <div class="meta">
+          <span>色系 <b id="winFamily">—</b></span>
+          <span>色差 ΔE00 <b id="winDE">—</b></span>
+          <span>取样 <b id="winPixels">—</b> 像素</span>
+        </div>
+        <div class="conf" id="confBox"></div>
+        <div class="ctxwarn" id="contextWarn"></div>
+      </div>
+      <div class="alts">
+        <h3>其他候选</h3>
+        <div id="altList"></div>
+      </div>
+      <p class="hint" style="margin:12px 0 0">左边是你相机拍到的颜色，右边是官方色值。<b>用自己的眼睛看两块色块是否一致</b>，比任何 ΔE 数字都可靠。</p>
+    </div>
+  </div>
+
+  <details class="card settings">
+    <summary>设置 · 色库 · 使用说明</summary>
+    <div class="card-bd setgrid">
+
+      <div class="field">
+        <label>取样框大小 <span class="val" id="boxVal">64 px</span></label>
+        <input type="range" id="boxSize" min="24" max="160" step="8" value="64">
+        <div class="desc">墙面纹理粗就调大；小色块/色卡就调小。取样时会剔除最亮和最暗各 10% 的像素，压掉反光和阴影。</div>
+      </div>
+      <div class="field">
+        <label>连拍帧数 <span class="val" id="frameVal">8 帧</span></label>
+        <input type="range" id="frameCount" min="1" max="16" step="1" value="8">
+        <div class="desc">多帧在线性光域平均，降低传感器噪点。暗光下建议 12–16 帧。</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label>校准状态</label>
+        <div class="desc" id="gainInfo">未校准。强烈建议先做一次校准，否则自动白平衡会把颜色带偏。</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="btnRecalib" class="ghost" style="flex:1">重新校准</button>
+          <button id="btnClearCalib" class="ghost" style="flex:1">清除校准</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>光源与补光 <span class="val" id="torchCapVal">检测中</span></label>
+        <div class="desc">
+          <b>补光灯的作用是「把光照锁住」，不是「提供标准光源」。</b>手机闪光灯是颗便宜的白光 LED：实测不同机型显色指数从 <b>62 到 95.5</b> 不等，青光和深红波段常有缺口。这类<b>光谱缺口造成的偏色，白卡校准修不了</b>（它只校正白点，校正不了同色异谱）。而且闪光灯紧贴镜头正面直射，半光漆面容易反出过曝白斑。<br><br>
+          <b>怎么用才对：</b>环境太暗、有云影或人影晃动时开补光，把光照固定住；<b>开/关补光后必须马上重新校准白卡</b>，程序会强制作废旧校准。尽量让光斜着打（约 45°），或隔着一层薄纸巾做柔光，避开正对镜头的反光。真正要准，最稳的是<b>在最终刷漆的那个房间、那个时段、那个灯下测</b> —— 油漆本来就是在那里被看的。<br><br>
+          能力说明：Chrome 安卓可用 <kbd>getCapabilities().torch</kbd> 控制常亮补光；iOS Safari 基本不暴露；低电量或机身过热时系统会直接禁用，此时按钮会失效。
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px">
+          <button id="btnAE" class="ghost">锁定曝光</button>
+          <button id="btnFlip" class="ghost">翻转镜头</button>
+        </div>
+        <div class="desc" id="torchInfo" style="margin-top:8px"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label>色库管理 <span class="val" id="dbCount">—</span></label>
+        <div class="desc" id="dbInfo"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <button id="btnImport" class="ghost">导入色库 CSV</button>
+          <button id="btnTemplate" class="ghost">下载 CSV 模板</button>
+          <button id="btnRestore" class="ghost" style="grid-column:span 2">恢复官方 1101 色</button>
+        </div>
+        <input type="file" id="fileInput" accept=".csv,.json,.txt,text/csv,application/json">
+        <div class="tagline">CSV 表头：<kbd>code,name,hex</kbd>（可加 <kbd>family</kbd>）。也支持同结构的 JSON 数组。导入后存到本机浏览器，不会上传。中国区 <kbd>30YY 69/048</kbd> 或北美 <kbd>DLX1001-1</kbd> 的色卡可按此格式自行导入。</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label>操作步骤（决定准不准的是前两步）</label>
+        <div class="desc">
+          <b>1. 固定光照。</b>关掉混合光源，避开阳光直射和彩色反光。太暗或有晃动光影就开「补光灯」把光锁住 —— 但<b>开关补光后必须重新校准</b>。尽量在最终刷漆的房间和时段测。<br>
+          <b>2. 校准。</b>把标准白卡（或一张已知的 Dulux 白卡）放满取景框，点「① 校准」。<b>换房间、开灯、换时段、开关补光都要重校。</b><br>
+          <b>3. 校验。</b>隔一会儿或怀疑光变了，把同一张白卡放回取景框点「校验光照」。程序会用现有增益实测，ΔE>2 就说明光照漂了，别信刚才的结果，重新校准。<br>
+          <b>4. 取样。</b>镜头平行对准漆面，填满取景框，避开边界、阴影、高光。可先「冻结画面」再识别。<br>
+          <b>5. 核对。</b>看左右色块是否一致，再看 Top5 候选。<b>最终买漆前请用官方 A4 色卡或试色罐确认。</b>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>ΔE00 怎么读（人话）</label>
+        <div class="desc">ΔE 是「两个颜色差多少」的数值，已按人眼敏感度加权。<b>&lt;1</b>：放在一起几乎分不出；<b>1–2.3</b>：很接近，仔细看才分得出；<b>2.3–5</b>：明显是两个色，只能当候选；<b>&gt;5</b>：差得远，多半是没校准或打光有问题。手机屏幕本身也没校色，所以数字只用来排序，别当判决。</div>
+      </div>
+
+      <div class="field">
+        <label>这个工具做不到什么</label>
+        <div class="desc">手机 ISP 会自动改色，环境光色温、漆面光泽度、屏幕色域都会带来偏差；不同批次的漆、哑光/半光也会让同一色号看起来不同。白卡校准只做三通道增益，<b>能校正白点，不能校正低显色光源的光谱缺口</b>（同色异谱）—— 这是手机方案的天花板，分光测色仪才能解决。<b>官方自己都注明网站色值仅供参考</b>。所以这里给的是「最接近的几个候选」，不是色号鉴定结论。</div>
+      </div>
+
+      <div class="field">
+        <label>色库来源</label>
+        <div class="desc" id="sourceInfo"></div>
+      </div>
+
+    </div>
+  </details>
+
+  <footer>
+    <b>数据处理</b>：摄像头帧只在本机 canvas 内计算，不上传、不存储照片。<br>
+    <b>色库</b>：Dulux Australia 官网公开色彩目录（色名 / Atlas 编号 / sRGB 十六进制值），抓取日期 2026-11-06。色值为网页展示值，非实物分光数据。Dulux 及色名归各自权利人所有，本工具仅作检索辅助。
+  </footer>
+</div>
+
+<div class="sheet" id="calibSheet">
+  <div class="sheet-in">
+    <h2>校准白平衡</h2>
+    <p>在<b>和待识别漆面完全相同的光照</b>下，把参考卡放进取景框并填满，然后按下方按钮。校准会算出 R/G/B 三通道的增益，之后每次取样都会先做校正。</p>
+    <div id="calibTorchNote" style="font-size:11.5px;line-height:1.6;background:#fff8e8;border-left:3px solid #e0aa2c;padding:8px 10px;border-radius:7px;margin:-6px 0 12px"></div>
+    <label class="radio sel" id="modeWhite">
+      <b>标准白卡 / 灰卡</b>
+      <small>推荐用 X-Rite、Datacolor 一类无荧光白卡。普通打印纸含荧光增白剂，在日光灯下会偏蓝，只能凑合。</small>
+    </label>
+    <label class="radio" id="modeDulux">
+      <b>用一张已知的 Dulux 白卡校准（更贴合官方色值）</b>
+      <small>选你手上那张实体色卡的色号，程序直接以该色的官方色值为校正目标，同时抵消相机偏色和官方色值之间的偏差。</small>
+    </label>
+    <div id="duluxCardPick">
+      <input type="search" id="cardSearch" placeholder="搜索色名或 Atlas 编号，例如 Vivid White / SW1G1">
+      <div id="cardList" style="max-height:190px;overflow:auto;margin-top:6px;border:1px solid var(--line);border-radius:9px"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button id="btnCalibCancel" class="ghost" style="flex:1">取消</button>
+      <button id="btnCalibRun" class="primary" style="flex:2">执行校准</button>
+    </div>
+    <p style="margin:12px 0 0;font-size:11px">提示：校准卡不要过曝。如果取景框里出现纯白 <kbd>#ffffff</kbd>，换个角度避开反光再校准。</p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>/* Dulux Colour Scanner - colour engine
+ * sRGB -> linear RGB -> XYZ(D65) -> CIE Lab, CIEDE2000, white-card calibration.
+ * No dependencies. Works in browser (window.ColorEngine) and Node (module.exports).
+ */
+(function (root, factory) {
+  var api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else root.ColorEngine = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+
+  var DEG = Math.PI / 180;
+  var WHITE_D65 = [0.95047, 1.00000, 1.08883];
+  var EPS = 216 / 24389;      // (6/29)^3
+  var KAPPA = 24389 / 27;     // 29^3/3^3
+
+  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  function srgbToLinear(c) {
+    c = c / 255;
+    return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  }
+
+  function linearToSrgb(c) {
+    c = clamp(c, 0, 1);
+    var v = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+    return clamp(Math.round(v * 255), 0, 255);
+  }
+
+  function hexToRgb(hex) {
+    var h = String(hex).trim().replace(/^#/, '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+
+  function rgbToHex(rgb) {
+    return '#' + rgb.map(function (v) {
+      return ('0' + clamp(Math.round(v), 0, 255).toString(16)).slice(-2);
+    }).join('');
+  }
+
+  function rgbToXyz(rgb) {
+    var r = srgbToLinear(rgb[0]), g = srgbToLinear(rgb[1]), b = srgbToLinear(rgb[2]);
+    return [
+      0.4124564 * r + 0.3575761 * g + 0.1804375 * b,
+      0.2126729 * r + 0.7151522 * g + 0.0721750 * b,
+      0.0193339 * r + 0.1191920 * g + 0.9503041 * b
+    ];
+  }
+
+  function labF(t) { return t > EPS ? Math.cbrt(t) : (KAPPA * t + 16) / 116; }
+
+  function xyzToLab(xyz) {
+    var fx = labF(xyz[0] / WHITE_D65[0]);
+    var fy = labF(xyz[1] / WHITE_D65[1]);
+    var fz = labF(xyz[2] / WHITE_D65[2]);
+    return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+  }
+
+  function rgbToLab(rgb) { return xyzToLab(rgbToXyz(rgb)); }
+  function hexToLab(hex) { var c = hexToRgb(hex); return c ? rgbToLab(c) : null; }
+
+  /* CIEDE2000, Sharma, Wu & Dalal (2005). Returns deltaE00. */
+  function ciede2000(lab1, lab2, kL, kC, kH) {
+    kL = kL || 1; kC = kC || 1; kH = kH || 1;
+    var L1 = lab1[0], a1 = lab1[1], b1 = lab1[2];
+    var L2 = lab2[0], a2 = lab2[1], b2 = lab2[2];
+
+    var C1 = Math.sqrt(a1 * a1 + b1 * b1);
+    var C2 = Math.sqrt(a2 * a2 + b2 * b2);
+    var Cbar = (C1 + C2) / 2;
+    var Cbar7 = Math.pow(Cbar, 7);
+    var G = 0.5 * (1 - Math.sqrt(Cbar7 / (Cbar7 + Math.pow(25, 7))));
+    var a1p = (1 + G) * a1, a2p = (1 + G) * a2;
+    var C1p = Math.sqrt(a1p * a1p + b1 * b1);
+    var C2p = Math.sqrt(a2p * a2p + b2 * b2);
+
+    function hp(bb, ap) {
+      if (ap === 0 && bb === 0) return 0;
+      var h = Math.atan2(bb, ap) / DEG;
+      return h >= 0 ? h : h + 360;
+    }
+    var h1p = hp(b1, a1p), h2p = hp(b2, a2p);
+
+    var dLp = L2 - L1;
+    var dCp = C2p - C1p;
+    var dhp;
+    if (C1p * C2p === 0) dhp = 0;
+    else if (Math.abs(h2p - h1p) <= 180) dhp = h2p - h1p;
+    else if (h2p - h1p > 180) dhp = h2p - h1p - 360;
+    else dhp = h2p - h1p + 360;
+    var dHp = 2 * Math.sqrt(C1p * C2p) * Math.sin(dhp * DEG / 2);
+
+    var Lbarp = (L1 + L2) / 2;
+    var Cbarp = (C1p + C2p) / 2;
+    var hbarp;
+    if (C1p * C2p === 0) hbarp = h1p + h2p;
+    else if (Math.abs(h1p - h2p) <= 180) hbarp = (h1p + h2p) / 2;
+    else if (h1p + h2p < 360) hbarp = (h1p + h2p + 360) / 2;
+    else hbarp = (h1p + h2p - 360) / 2;
+
+    var T = 1
+      - 0.17 * Math.cos((hbarp - 30) * DEG)
+      + 0.24 * Math.cos((2 * hbarp) * DEG)
+      + 0.32 * Math.cos((3 * hbarp + 6) * DEG)
+      - 0.20 * Math.cos((4 * hbarp - 63) * DEG);
+    var dTheta = 30 * Math.exp(-Math.pow((hbarp - 275) / 25, 2));
+    var Cbarp7 = Math.pow(Cbarp, 7);
+    var Rc = 2 * Math.sqrt(Cbarp7 / (Cbarp7 + Math.pow(25, 7)));
+    var Lm50sq = Math.pow(Lbarp - 50, 2);
+    var SL = 1 + (0.015 * Lm50sq) / Math.sqrt(20 + Lm50sq);
+    var SC = 1 + 0.045 * Cbarp;
+    var SH = 1 + 0.015 * Cbarp * T;
+    var Rt = -Math.sin(2 * dTheta * DEG) * Rc;
+
+    var tL = dLp / (kL * SL);
+    var tC = dCp / (kC * SC);
+    var tH = dHp / (kH * SH);
+    return Math.sqrt(tL * tL + tC * tC + tH * tH + Rt * tC * tH);
+  }
+
+  /* White-card calibration. Gains are computed and applied in LINEAR light,
+   * which is the physically correct place for a von Kries style correction.
+   * target defaults to a slightly off-paper white to avoid clipping. */
+  function computeWhiteGains(sampledWhite, target) {
+    target = target || [246, 246, 246];
+    var s = [], t = [];
+    for (var i = 0; i < 3; i++) {
+      s.push(srgbToLinear(clamp(sampledWhite[i], 1, 255)));
+      t.push(srgbToLinear(target[i]));
+    }
+    return [t[0] / s[0], t[1] / s[1], t[2] / s[2]];
+  }
+
+  function applyGains(rgb, gains) {
+    if (!gains) return rgb.slice();
+    return [0, 1, 2].map(function (i) {
+      return linearToSrgb(srgbToLinear(clamp(rgb[i], 0, 255)) * gains[i]);
+    });
+  }
+
+  /* Robust region average: sort by luma, drop the brightest and darkest tails,
+   * then average. Kills specular highlights and small shadows. */
+  function sampleRegion(imageData, cx, cy, size, trimPct) {
+    trimPct = trimPct == null ? 0.10 : trimPct;
+    var w = imageData.width, h = imageData.height, d = imageData.data;
+    var half = Math.max(2, Math.floor(size / 2));
+    var x0 = clamp(Math.round(cx - half), 0, w - 1);
+    var x1 = clamp(Math.round(cx + half), 0, w - 1);
+    var y0 = clamp(Math.round(cy - half), 0, h - 1);
+    var y1 = clamp(Math.round(cy + half), 0, h - 1);
+    var px = [];
+    for (var y = y0; y <= y1; y++) {
+      for (var x = x0; x <= x1; x++) {
+        var p = (y * w + x) * 4;
+        var r = d[p], g = d[p + 1], b = d[p + 2];
+        px.push([0.2126 * r + 0.7152 * g + 0.0722 * b, r, g, b]);
+      }
+    }
+    if (!px.length) return null;
+    px.sort(function (a, b) { return a[0] - b[0]; });
+    var cut = Math.floor(px.length * trimPct);
+    var lo = cut, hi = px.length - cut;
+    if (hi <= lo) { lo = 0; hi = px.length; }
+    var sum = [0, 0, 0];
+    for (var k = lo; k < hi; k++) {
+      sum[0] += px[k][1]; sum[1] += px[k][2]; sum[2] += px[k][3];
+    }
+    var n = hi - lo;
+    return {
+      rgb: [sum[0] / n, sum[1] / n, sum[2] / n],
+      pixels: n,
+      total: px.length
+    };
+  }
+
+  /* db: array of {code,name,hex,lab}. Returns top-N nearest with deltaE. */
+  function match(lab, db, topN) {
+    topN = topN || 5;
+    var out = new Array(db.length);
+    for (var i = 0; i < db.length; i++) {
+      out[i] = { index: i, dE: ciede2000(lab, db[i].lab) };
+    }
+    out.sort(function (a, b) { return a.dE - b.dE; });
+    return out.slice(0, topN).map(function (o) {
+      var c = db[o.index];
+      return { code: c.code, name: c.name, hex: c.hex, family: c.family, dE: o.dE };
+    });
+  }
+
+  function confidence(dE) {
+    if (dE < 1.0) return { label: '几乎不可分辨', level: 'great', text: 'ΔE<1，人眼基本分不出差别' };
+    if (dE < 2.3) return { label: '高度接近', level: 'good', text: 'ΔE 1–2.3，很接近，仍建议核对实物色卡' };
+    if (dE < 5.0) return { label: '可参考', level: 'fair', text: 'ΔE 2.3–5，只能缩小范围，别当结论' };
+    return { label: '差距明显', level: 'poor', text: 'ΔE>5，光照或取样可能有问题，重新校准' };
+  }
+
+  return {
+    srgbToLinear: srgbToLinear, linearToSrgb: linearToSrgb,
+    hexToRgb: hexToRgb, rgbToHex: rgbToHex,
+    rgbToXyz: rgbToXyz, xyzToLab: xyzToLab,
+    rgbToLab: rgbToLab, hexToLab: hexToLab,
+    ciede2000: ciede2000,
+    computeWhiteGains: computeWhiteGains, applyGains: applyGains,
+    sampleRegion: sampleRegion, match: match, confidence: confidence
+  };
+});
+</script>
+<script>window.DULUX_DB={"families":["whites-and-neutrals","greys","browns","purples","blues","greens","yellows","oranges","reds"],"colours":[["SW1G1","Vivid White™","#f7f8f4",0],["SW1E2","White on White™","#eceff0",0],["SW1E1","Lexicon® Quarter","#f1f2f1",0],["SW1G2","Lexicon® Half","#edefee",0],["SW1E3","Lexicon®","#e7eaea",0],["SP2B6","Highgate","#d9dddf",0],["SN4F1","Terrace White","#d7dad8",0],["SN4B3","Snow Season","#cbcecc",0],["SW1H4","Casper White Quarter","#edece6",0],["SW1F4","Natural White™","#eeece5",0],["SW1F3","Snowy Mountains Half","#edede5",0],["SW1F2","White Polar Quarter","#f2f0e6",0],["SW1E8","Berkshire White","#f3eedf",0],["SW1C2","Whisper White","#ebe9e0",0],["SW1H7","Antique White U.S.A.®","#efeae0",0],["S14D1Q","Hog Bristle® Quarter","#ece5d7",0],["S15B1Q","Beige Royal Quarter","#e4dfd4",0],["S14D1H","Hog Bristle® Half","#e5dccb",0],["S14D1","Hog Bristle®","#dcd0bb",0],["S15B1","Beige Royal","#cfc7b8",0],["SW1B4","White Exchange Half","#e3e1d8",0],["S16B1Q","White Duck Quarter","#e4e1d6",0],["SN3A1","Feather Soft","#d6d2c8",0],["SG6H1","Silver Tea Set","#d5d5d0",0],["SW1B1","White Cloak Quarter","#eeeae0",0],["SN4A3","Winter Terrace","#cdcabf",0],["SW1B2","White Dune Half","#efeadc",0],["SW1E9","Stowe White","#ece7d9",0],["SW1C4","White Beach Quarter","#e8e2d6",0],["S13B1Q","Limed White Quarter","#e4e0da",0],["SW1F8","White Swan","#efebda",0],["SW1D8","Chalk U.S.A.","#f3ebd8",0],["S11B1Q","Buff It Quarter","#eae3d8",0],["SN3H1","China White","#e3dece",0],["S13D1Q","Light Rice Quarter","#ece4d8",0],["S12C1Q","Mellow Beige Quarter","#eae3da",0],["S13B1H","Limed White Half","#dbd5ce",0],["S15C1Q","Grand Piano Quarter","#eae4d8",0],["S15C1H","Grand Piano Half","#e2dbcc",0],["S11B1H","Buff It Half","#e3dacc",0],["S12C1H","Mellow Beige Half","#e2d9cf",0],["SN3F2","Beige Antiquity","#ccc5bc",0],["S16D1Q","Handmade Linen Quarter","#ece8d3",0],["S15D1Q","Ecru Quarter","#ece5d6",0],["S16B1H","White Duck Half","#dbd7ca",0],["S15B1H","Beige Royal Half","#dad4c7",0],["SW1C9","Seed Pearl","#e8decd",0],["S12C1","Mellow Beige","#d9cdc1",0],["SN3E4","Beige Intent","#bfb7ae",0],["S16D1H","Handmade Linen Half","#e5dfc6",0],["S15D1H","Ecru Half","#e5ddca",0],["S16B1","White Duck","#cfcabb",0],["S11B1","Buff It","#d8cdbe",0],["S13D1H","Light Rice Half","#e5dbcd",0],["S14C1","Sandy Day","#d7cec1",0],["SN3E3","Beige Calm","#c6beb5",0],["S16D1","Handmade Linen","#ddd5b7",0],["S15D1","Ecru","#ddd2bb",0],["SN3G5","Vintage Beige","#c9bdac",0],["S15B3","Linseed","#b0a795",0],["S12C3","Puppy","#bcada0",0],["S15C1","Grand Piano","#d8cfbd",0],["S13B1","Limed White","#d0c8c1",0],["SN4A6","Winter Fog","#b3afa8",0],["S15D3","Balsa Stone","#cbb992",0],["S15C2","Tuft","#cac1ad",0],["S16B3","Oyster Linen","#b0a996",0],["S13C5","Light Leather","#938473",0],["S11B3","Blind Date","#bbaca1",0],["S13D1","Light Rice","#ddd0bf",0],["S13C3","Tapestry Beige","#b7ab9e",0],["SN3A5","Grey Port","#a8a093",0],["S14E5","Swamp Fox","#b79a69",0],["S14D3","Owl Wing","#c1b298",0],["S16B5","Antique","#8a836d",0],["S15C5","Knapsack","#95886c",0],["S12C5","Bedbox","#958575",0],["S13D3","Warm Neutral","#c0af9c",0],["S11B5","Toffee Fingers","#968577",0],["SN3E6","Ancient Ruin","#aea49a",0],["S15D5","Osso Bucco","#ac9468",0],["S13D5","Elm Branch","#a08b71",0],["S16B7","Bronze Fig","#6d6553",0],["S15B5","Army Issue","#8a7f6b",0],["S13C7","Ceylon Tea","#756658",0],["S12C7","Braid","#76665b",0],["S11B7","Sea Elephant","#76655b",0],["SG6H6","Hammer Grey","#696560",0],["S14E7","Outback View","#9e7f51",0],["S14D5","Stonecrop","#a08c6e",0],["S15C7","Irrigation","#776a56",0],["S15B7","Harold","#6d6253",0],["SG6H8","Hardened Steel","#46423e",0],["SG6H9","Dark Metal","#413c36",0],["SG6H7","Grey Cabin","#58544f",0],["SN4H8","Grey Master","#504e4e",0],["S15D7","Old Ruin","#917852",0],["S14D7","Jarrah","#826e58",0],["SN4H1","Dieskau","#cbc9c5",1],["SN4H2","Silkwort","#b6b5b3",1],["SN4G1","Tranquil Retreat","#c3c4c2",1],["SN4G2","Milton Moon","#b1b4b3",1],["SG6G1","Grey Pail","#babfc2",1],["SG6D1","Miller Mood","#b6bec5",1],["SG6G2","Accord","#a6acb1",1],["SN4G3","Endless Dusk","#9b9ea0",1],["SN4H3","Flooded Gum","#a3a29f",1],["SN4H4","Stepney","#8f8d8a",1],["SN4G4","Timeless Grey","#888a89",1],["SN4H6","Pewter Frame","#6d6c68",1],["SG6D4","Tinker","#76818c",1],["SG6G5","Guild Grey","#656c72",1],["SG6D6","Signature","#545e67",1],["SG6D7","Grid","#444c54",1],["SN4G6","Teahouse","#666966",1],["SN4H7","Raku","#5a5858",1],["SN4G7","Western Myall®","#545657",1],["SN4G8","Namadji®","#433f3b",1],["SG6G7","Ticking","#494d53",1],["SG6D8","Oolong","#383d43",1],["SG6G8","Domino","#3c3e3f",1],["SG6A9","Double Bass","#3c3538",1],["SG5A8","Noble Brown","#4b3f3e",1],["SG6B8","Wayward Grey","#3f3c3e",1],["SG6F8","Marais","#403d41",1],["SG6F9","Klavier","#363436",1],["SG6A7","Yarwood","#534a4f",1],["SG5A7","Babbler","#5d585a",1],["SG6B7","Otto&#x27;s Boy","#59555a",1],["SG6F7","Leadman","#4a4a50",1],["SG6A5","Mallard Grey","#6e686e",1],["SG5A6","Bilby","#716c6d",1],["SG6B6","Monk","#6c696d",1],["SG6F5","Ito","#666870",1],["SG6A4","Wild Dove","#837d85",1],["SG5A4","Old Eagle","#948e90",1],["SG6B4","Pelaco","#8f8b90",1],["SG6F4","Strap","#7b7f88",1],["SG6G4","Simone Weil","#7b8288",1],["SG6A3","Vanessa Mae","#99949b",1],["SG5A3","Moxa","#a7a2a5",1],["SG6B3","Grainger","#a4a0a6",1],["SG6F3","Class Blue","#91969f",1],["SG6D3","Aerobus","#8d98a1",1],["SG6G3","Water Worn","#91979d",1],["SG6A2","Pommier","#ada9af",1],["SG5A2","Silver Thaw","#bbb6b7",1],["SG6B2","Favoured","#b7b3b7",1],["SG6F2","Tin Cat","#a7abb2",1],["SG6D2","Chanson","#a3acb5",1],["SG6A1","Musing","#bebbc0",1],["SG5A1","Ashville","#c8c7c7",1],["SG6B1","Partita","#c9c5c6",1],["SG6F1","Meniscus","#b9bcc1",1],["S45B3","Regal Violet","#a198a2",1],["S43B1","Pensive","#c2c1cb",1],["S11D1Q","Bread Crumb Quarter","#f0e6d8",2],["S09E1H","Mornington Half","#e5d2c8",2],["S12D1","Shetland Lace","#decfc0",2],["S10D1","Clay Pipe","#d9c7b6",2],["S12D3","Puddle","#c8b49e",2],["S12D5","Snuggle Pie","#a48c73",2],["S09F9","Russet Tan","#7d4834",2],["S09E7","How Now","#885f50",2],["S09D7","Picador","#765a52",2],["S10B9","Chocolate Souffle","#503d34",2],["S11C8","Brown Land","#695447",2],["S14D8","Sandalwood","#615443",2],["S11B9","Meerkat","#514439",2],["S08D7","Redwood Forest","#906c5d",2],["S09F7","Coyote","#95624f",2],["S09E8","Brown Leaf","#784e3f",2],["S09D8","Basset Brown","#64463d",2],["S10C7","Havana","#765e52",2],["S11D7","Coconut Husk","#91715a",2],["S08D5","Magnitude","#ae8b7b",2],["S09F5","Cuddlepot","#ad7e68",2],["S09E5","New Penny","#a17a66",2],["S09D5","Grapple","#91776a",2],["S10C5","Spiced Nutmeg","#927b6b",2],["S11D5","Smooth Caramel","#ae8f73",2],["S08D3","Cosmic Aura","#ceb1a5",2],["S09F3","Primal","#caa591",2],["S09E3","Pragmatic","#c2a292",2],["S09D3","Net Worker","#b59f94",2],["S10C3","Tavern","#b6a494",2],["S11D3","Recycled","#cdb5a0",2],["S11D1","Bread Crumb","#e3d3be",2],["S08D1","Blossom Time","#e5d0c8",2],["S09F1","Ellen","#e2c6b7",2],["S09E1","Mornington","#dcc5b9",2],["S09D1","Christobel","#d4c4ba",2],["S10C1H","Chintz Half","#dfd3c8",2],["S10E1","Forever Romance","#dec9b8",2],["S11D1H","Bread Crumb Half","#eadecc",2],["S08D1H","Blossom Time Half","#ecdcd5",2],["S09F1H","Ellen Half","#ead4c7",2],["S09D1H","Christobel Half","#dfd2ca",2],["S10D1Q","Clay Pipe Quarter","#eadfd3",2],["S10C1","Chintz","#d4c6b9",2],["S06C1Q","Nut Milk Quarter","#eae1de",2],["S08E1Q","Pink Lotus Quarter","#f5e6de",2],["S08D1Q","Blossom Time Quarter","#f1e5df",2],["S09D1Q","Christobel Quarter","#e7ddd6",2],["S10C1Q","Chintz Quarter","#e8ded5",2],["S12D1Q","Shetland Lace Quarter","#ede4da",2],["S06C1H","Nut Milk Half","#e3d7d4",2],["S08E1H","Pink Lotus Half","#f2ded4",2],["S10E1Q","Forever Romance Quarter","#ede0d4",2],["S09E1Q","Mornington Quarter","#ecddd5",2],["S12D1H","Shetland Lace Half","#e7dbce",2],["S06C1","Nut Milk","#d9cbc8",2],["S08E1","Pink Lotus","#edd3c7",2],["S09F1Q","Ellen Quarter","#efded4",2],["S10D1H","Clay Pipe Half","#e3d4c6",2],["S06C3","Perdu Pink","#c1aba8",2],["S08E3","Piglet","#ddb5a5",2],["S10E1H","Forever Romance Half","#e7d6c7",2],["S06C5","Pigeon Pink","#9c847e",2],["S08E5","Potter&#x27;s Pink","#c2907a",2],["S10E3","Basketweave Beige","#c9ab91",2],["S10D3","Camel Hide","#c0a790",2],["S06C7","Plumburn","#7d645e",2],["S08E7","Clay Court","#a8735d",2],["S10E5","Caramel Sundae","#a98469",2],["S10D5","Yardbird","#9e8069",2],["S12D7","Baton","#866e59",2],["S16B9","Tea Chest","#53493a",2],["S06C8","Rich Loam","#583c37",2],["S08D9","Pookie Bear","#82482d",2],["S10E7","Warm Nutmeg","#8f6850",2],["S10D7","Nomad","#83624f",2],["S13D7","Deep Bamboo","#826d58",2],["S12D9","Brown Earth","#5f4b3b",2],["S15C9","Country Haven","#584d3c",2],["S10C9","Woodland Brown","#5f4637",2],["S10C8","Guitar","#6a4937",2],["S13D9","Nut Oil","#765a37",2],["S12C9","Coffee Dust","#51453a",2],["S13C9","Tree Hollow","#55493a",2],["S15B9","Swamp Land","#54483a",2],["S08C8","Teak Wood","#613b32",2],["S48D1Q","Bunny Soft Quarter","#e8dadc",3],["S47E1Q","Elusive Mauve Quarter","#ecdce4",3],["S48D1","Bunny Soft","#d3bfc4",3],["S48E3","Pale Petticoat","#b99aa6",3],["S47D1Q","Tip Toes Quarter","#e9dbe2",3],["S47D1","Tip Toes","#d7c1cd",3],["S47D5","Artiste","#987388",3],["S47E7","Private Tone","#84546a",3],["S45F1H","Recuperate Half","#e5d8e9",3],["S45D1","Modesty","#d3c7d9",3],["S45E1","Prudence","#d3c6db",3],["S46F3","Blackberry Sorbet","#c1a2ba",3],["S43G1H","Vision Half","#dbd8eb",3],["S43D1","Pax","#c6c5d9",3],["S45F3","Immortal","#bfa8cb",3],["S45E5","Divine","#9979a0",3],["S42E1Q","Silver Sweetpea Quarter","#dde1ed",3],["S43D1Q","Pax Quarter","#dfdee9",3],["S42G1H","Ace Half","#d4d9ec",3],["S42C1","Horizon Sky","#c2c3d2",3],["S43G1","Vision","#d0cce5",3],["S43E3","Instigate","#aca6c7",3],["S43G3","Monastic","#a9a9d2",3],["S43G5","Murex","#807db1",3],["S01D8","Shaded Fuchsia","#664248",3],["S46E9","Dulcet Violet","#58394d",3],["S47D9","Enchantress","#5d3947",3],["S47H9","Rich Red Violet","#7c3653",3],["S45F8","Clary","#674976",3],["S43G8","Iris Flower","#3b4374",3],["S42D8","Genie","#3e4463",3],["S42F8","Wooed","#40456c",3],["S01D7","Plumberry","#725054",3],["S46F9","Violet Posy","#60384e",3],["S47D7","Passive Royal","#785365",3],["S46H7","Queen&#x27;s Honour","#8a5777",3],["S45F7","Champion","#7a5986",3],["S43G7","Colossus","#5f5b91",3],["S43H8","Purple Wildflower","#383e6c",3],["S42D7","Blue Glaze","#565a7c",3],["S01D5","Pink Poppy","#8d6d75",3],["S47E5","Upper Crust","#a3748d",3],["S46H5","Wonder Wish","#a9779a",3],["S45F5","Virtuous","#9d7ba8",3],["S42G7","Persian Plush","#575d93",3],["S42E7","Midnight Sea","#555d8c",3],["S01D3","Deep South","#b498a0",3],["S46D3","Mauve Muslin","#b59dad",3],["S46H3","Lilac Fluff","#c7a4c0",3],["S42G5","Astro Zinger","#787fb4",3],["S42D5","Blue Dove","#767a9e",3],["S01C1","Pink Polar","#cbbabe",3],["S47D3","Fiddlesticks","#ba9eb1",3],["S46F1","Naked Pink","#d7c6d7",3],["S45F1","Recuperate","#dccce3",3],["S42G3","Whipped Violet","#a0aad4",3],["S42E5","Bright Zenith","#757ead",3],["S46E1","Mauve Organdie","#d8c4d1",3],["S46F1H","Naked Pink Half","#e1d4e0",3],["S42G1","Ace","#c7cce6",3],["S42E3","Bright Bluebell","#9da8ce",3],["S01C1H","Pink Polar Half","#d7c9cc",3],["S46E1H","Mauve Organdie Half","#e2d2dc",3],["S47D1H","Tip Toes Half","#e1cfd8",3],["S46F1Q","Naked Pink Quarter","#e9dfe7",3],["S43G1Q","Vision Quarter","#e4e2ef",3],["S42C1Q","Horizon Sky Quarter","#dcdde5",3],["S42E1","Silver Sweetpea","#c4cae1",3],["S48D1H","Bunny Soft Half","#decdd1",3],["S46D1Q","Tinge Of Mauve Quarter","#e7dde1",3],["S45F1Q","Recuperate Quarter","#ece2ee",3],["S45E1Q","Prudence Quarter","#e6dee9",3],["S42D1Q","Iced Lavender Quarter","#dce0ea",3],["S42G1Q","Ace Quarter","#dfe3f0",3],["S42E1H","Silver Sweetpea Half","#d2d7e8",3],["S01C1Q","Pink Polar Quarter","#e1d6d8",3],["S46E1Q","Mauve Organdie Quarter","#eadde4",3],["S45B1Q","Stately Frills Quarter","#ddd8db",3],["S45D1Q","Modesty Quarter","#e6dfe8",3],["S42D1H","Iced Lavender Half","#d0d5e3",3],["S01B1Q","Mystic Vision Quarter","#dfd8da",3],["S45D1H","Modesty Half","#ded5e2",3],["S46C1Q","Limpid Light Quarter","#e2dbdf",3],["S45E1H","Prudence Half","#ddd3e3",3],["S43B1Q","Pensive Quarter","#dcdce1",3],["S43D1H","Pax Half","#d3d3e2",3],["S42C1H","Horizon Sky Half","#d0d2dd",3],["S45B1H","Stately Frills Half","#d2cbd0",3],["S46D1H","Tinge Of Mauve Half","#dfd1d8",3],["S47B1Q","Bay Fog Quarter","#e1dadd",3],["S47E1H","Elusive Mauve Half","#e6d1dc",3],["S43F1Q","Opus Quarter","#e2e1ec",3],["S43B1H","Pensive Half","#d0cfd7",3],["S01B1H","Mystic Vision Half","#d3cbce",3],["S46D1","Tinge Of Mauve","#d4c3cc",3],["S46C1H","Limpid Light Half","#d9d0d6",3],["S47E1","Elusive Mauve","#ddc4d2",3],["S45D3","Bashful","#b8a5c0",3],["S43F1H","Opus Half","#d9d7e7",3],["S43D3","Fife","#a7a4c2",3],["S42D1","Iced Lavender","#c2c8db",3],["S01B1","Mystic Vision","#c6bdc0",3],["S47B1H","Bay Fog Half","#d6cdd2",3],["S47E3","Pretty Lady","#c2a0b6",3],["S45E3","Extraordinaire","#bba5c5",3],["S43F1","Opus","#cdcae0",3],["S43D5","Jazz","#7f799c",3],["S45B1","Stately Frills","#c4bdc3",3],["S46D5","Magic Gem","#8e7183",3],["S47B1","Bay Fog","#c9bfc5",3],["S46F5","Angel Heart","#a17692",3],["S43D7","Taylor","#5d5779",3],["S42D3","Wild Phlox","#9ea6c3",3],["S46C1","Limpid Light","#cdc1c9",3],["S48E5","Heritage Taffeta","#946f7b",3],["S47C3","Symbolic","#b29eae",3],["S45D5","Vestige","#927899",3],["S43E5","Tyrian Purple","#837aa3",3],["S43C5","Flying Carpet","#767389",3],["S42C3","Purple Balance","#9d9fb3",3],["S01C3","Persian Pastel","#a9939a",3],["S48C8","Misty Grape","#65424d",3],["S46C3","Lavender Illusion","#a99aa6",3],["S47F8","Grand Poobah","#864766",3],["S45E7","Dr Who","#76577c",3],["S43E7","Psychic","#605980",3],["S43C7","Freefall","#555265",3],["S43C3","Lazy Lavender","#a1a0b3",3],["S01C5","Deep Hydrangea","#82696e",3],["S46C7","Prophetic Purple","#614f59",3],["S47C6","Cabal","#7f6474",3],["S46F7","Magnificence","#7f556f",3],["S45D7","Trixter","#6f5676",3],["S43D8","Evening Fizz","#4c4970",3],["S43C8","Oath","#49465a",3],["S42C5","Hailstorm","#737389",3],["S01C7","Deep Orchid","#694d50",3],["S47B8","Punchit Purple","#55414e",3],["S46C5","Lively Lavender","#806e7b",3],["S46E7","Hothouse Orchid","#745468",3],["S45G9","Tropical Iris","#5a3a68",3],["S43E8","Purple Berry","#4b4973",3],["S45B5","Purposeful","#746a73",3],["S42C7","Inky Storm","#525266",3],["S01B8","Spiced Mushroom","#5e3e41",3],["S46A8","Veiled Violet","#54424d",3],["S48E7","Stravinsky Pink","#76505a",3],["S47C7","Exclusively","#6b5160",3],["S45H9","Purple Wisdom","#634073",3],["S45A8","Fanfare","#504454",3],["S45B7","Purple Empire","#594d54",3],["S42B8","Attorney","#3e4258",3],["S37F1Q","Placid Blue Quarter","#d5e3ed",4],["S37B1Q","Pre School Quarter","#d3dce2",4],["S37B1H","Pre School Half","#c5d0d8",4],["S37B1","Pre School","#b4c2cd",4],["S34C1Q","Sky Babe Quarter","#b6dde9",4],["S36H1H","Template Half","#bbd8e9",4],["S37F3","Northern Sky","#8cadcb",4],["S36F3","Seaborne","#79a8c8",4],["S35F1","Deluxe Days","#8ac9e5",4],["S35H3","High Blue","#4caddf",4],["S35H5","Water Raceway","#0089c7",4],["S35H7","Wing Commander","#006bac",4],["S37C3","Sell Out","#90a3b6",4],["S37C5","Enterprise","#65788b",4],["S36B5","Oceanic","#4f6f81",4],["S37C7","Rainmaker","#485868",4],["S40H9","True Blue","#194983",4],["S41H9","Passionate Blue","#1f3665",4],["S37E9","Blue Accolade","#25435d",4],["S41E9","Blue Lobelia","#28324d",4],["S36B7","Baltic","#39505f",4],["S36D9","Integrity","#223f57",4],["S36C9","Harpoon","#273c4c",4],["S37D9","Snap-Shot","#2a3f52",4],["S30H8","Go Alpha","#008487",4],["S32H9","Sea Creature","#005c6d",4],["S32E9","Plunge","#035767",4],["S35H9","Bay Retreat","#005183",4],["S37F8","Overtake","#33577e",4],["S40D8","Buster","#3e4c69",4],["S30H7","Teal Sting","#008e96",4],["S32G7","Align","#00778c",4],["S32E7","Porpoise Place","#076e7e",4],["S40H7","International","#3766a5",4],["S37F7","Winter Palace","#41658a",4],["S36D7","Winner&#x27;s Circle","#355871",4],["S40D7","Steadfast","#4a5977",4],["S30H5","Green Buoy","#31abb5",4],["S32G5","Zeftron","#0096ad",4],["S32E5","Waikiki","#218fa0",4],["S40H5","Sea Note","#5486c1",4],["S37F5","Navigator","#5c85ab",4],["S36D5","Sea Drifter","#4a7894",4],["S40D5","Chicory Flower","#667999",4],["S30H3","Lagoona Teal","#76c8d2",4],["S32G3","Shampoo","#4ebbce",4],["S32E3","Gondolier","#5cb4c5",4],["S40H3","Swift","#81acdb",4],["S36D3","Ocean Surf","#79a4bd",4],["S40D3","Wild Clary","#92a5c1",4],["S30H1","Ice Pack","#a5dde3",4],["S32G1","July","#8bd5e3",4],["S32E1","Baby Motive","#8ecedb",4],["S35H1","Shimmer","#88cae9",4],["S40H1","Breezy","#aecae9",4],["S37F1","Placid Blue","#b8cde1",4],["S36D1","Mr Frosty","#a3c6da",4],["S40D1","Alley","#b8c5d9",4],["S30H1H","Ice Pack Half","#bae5e9",4],["S32G1H","July Half","#a5dfea",4],["S32E1H","Baby Motive Half","#a6d9e4",4],["S35H1H","Shimmer Half","#a2d6ee",4],["S40H1H","Breezy Half","#c0d7ee",4],["S37F1H","Placid Blue Half","#c8d9e8",4],["S36D1H","Mr Frosty Half","#b7d4e3",4],["S40D1H","Alley Half","#c8d3e2",4],["S30H1Q","Ice Pack Quarter","#cbebee",4],["S32G1Q","July Quarter","#bce7ee",4],["S32E1Q","Baby Motive Quarter","#bbe3ea",4],["S35H1Q","Shimmer Quarter","#b8e0f1",4],["S40H1Q","Breezy Quarter","#cfe1f1",4],["S36D1Q","Mr Frosty Quarter","#c8deea",4],["S40D1Q","Alley Quarter","#d6dee9",4],["S30F1Q","Skyway Quarter","#d1ebed",4],["S32D1Q","Tenzing Quarter","#c5e5e8",4],["S35F1Q","Deluxe Days Quarter","#b9e0f0",4],["S41H1Q","Cuddle Quarter","#d8e1f0",4],["S36F1Q","Sea Cliff Quarter","#cae0ec",4],["S35C1Q","Sky Bus Quarter","#c1dce7",4],["S40C1Q","Candela Quarter","#d6dde6",4],["S30F1H","Skyway Half","#c1e4e7",4],["S32D1H","Tenzing Half","#b3dce1",4],["S34C1H","Sky Babe Half","#a0d2e2",4],["S35F1H","Deluxe Days Half","#a3d6ec",4],["S41H1H","Cuddle Half","#cbd8ed",4],["S36F1H","Sea Cliff Half","#b9d5e6",4],["S35C1H","Sky Bus Half","#aed1df",4],["S40C1H","Candela Half","#c9d3de",4],["S30F1","Skyway","#aedbe0",4],["S32D1","Tenzing","#9dd0d8",4],["S34C1","Sky Babe","#88c4d8",4],["S41H1","Cuddle","#bbcbe7",4],["S36F1","Sea Cliff","#a5c8de",4],["S35C1","Sky Bus","#98c2d5",4],["S40C1","Candela","#b9c5d4",4],["S30F3","Tapioca","#7dc5ca",4],["S32D3","Water Music","#6eb2be",4],["S34C3","Dupain","#57a3bc",4],["S35F3","Cousteau","#54add6",4],["S41H3","Black Drop","#90acd9",4],["S35C3","Adventure Isle","#6ea1b8",4],["S40C3","Anita","#90a0b7",4],["S30F5","Marlin Green","#41a4a9",4],["S32D5","Seachange","#3d8a96",4],["S34C5","Aqua Trend","#277994",4],["S35F5","Tall Ships","#0e86b9",4],["S41H5","Amazing Smoke","#6683ba",4],["S36F5","Denim Blue","#4b80a5",4],["S35C5","Harbour Blue","#407690",4],["S40C5","Niche","#65768e",4],["S30F7","Riviera Sea","#1a8487",4],["S32D7","Esplanade","#266973",4],["S34C7","Canoe Blue","#1c5870",4],["S35F7","Atlantic Mystique","#006799",4],["S41H7","Bio Blue","#45619d",4],["S36F7","Pelagic","#345f83",4],["S35C7","Ocean Trapeze","#2e546a",4],["S40C7","Snoop","#49566b",4],["S30F9","Blue Emerald","#0f5c5d",4],["S32C9","Submarine","#204c54",4],["S34C9","Capital Blue","#194356",4],["S35F9","Snorkel Sea","#00537c",4],["S36F9","Superstar","#1c4969",4],["S35D9","Reef Resort","#274355",4],["S40C8","Sapphire Stone","#40495c",4],["S30D8","Magnetic Green","#2b6765",4],["S34A8","Sea Kelp","#354a54",4],["S34E9","Forest Blues","#0c4761",4],["S36H9","Dance Studio","#065183",4],["S40F8","Misty Blue","#344f7c",4],["S30D7","Mallard Green","#2e7276",4],["S34A7","Wentworth","#335461",4],["S34E7","Commandes","#0a5c7c",4],["S36H7","Galaxy Blue","#30638f",4],["S40F7","Integra","#406194",4],["S38E7","Stream","#48607a",4],["S41D7","Harbourmaster","#4d546b",4],["S30D5","Adrift","#4a9398",4],["S34A5","Outrigger","#487584",4],["S34E5","Mitchell Blue","#0d7c9f",4],["S36H5","Seabrook","#4b83af",4],["S40F5","Prompt","#5d82b5",4],["S38E5","Blue Oar","#64809b",4],["S41D5","Legal Eagle","#6d758e",4],["S30D3","Waterway","#7db9be",4],["S34A3","Bosco Blue","#76a2af",4],["S34E3","Oasis Spring","#47a6c5",4],["S36H3","Calm Day","#7baccf",4],["S40F3","Sora Sky","#8babd5",4],["S38E3","Frills","#8ea8c1",4],["S36B3","Post Boy","#7a9bad",4],["S41D3","Silver Star","#97a1b8",4],["S30D1","Aqua Frost","#a9d3d7",4],["S34A1","Airborne","#a1c4cf",4],["S34E1","Whimsy","#7cc5de",4],["S36H1","Template","#a5cbe2",4],["S40F1","Radar","#b5c9e4",4],["S38E1","Angora Blue","#b8c7d7",4],["S36B1","Sea Breeze","#a3bfcd",4],["S41C1","Image Tone","#bdc2cf",4],["S30D1H","Aqua Frost Half","#bcdee1",4],["S34A1H","Airborne Half","#b5d2db",4],["S34E1H","Whimsy Half","#98d3e6",4],["S40F1H","Radar Half","#c6d6ea",4],["S38E1H","Angora Blue Half","#c8d4e1",4],["S36B1H","Sea Breeze Half","#b7ced9",4],["S41C1H","Image Tone Half","#ccd0da",4],["S30D1Q","Aqua Frost Quarter","#cbe6e7",4],["S34A1Q","Airborne Quarter","#c6dde3",4],["S34E1Q","Whimsy Quarter","#afddec",4],["S36H1Q","Template Quarter","#cae1ee",4],["S40F1Q","Radar Quarter","#d4e0ee",4],["S38E1Q","Angora Blue Quarter","#d6dfe8",4],["S36B1Q","Sea Breeze Quarter","#c8dae2",4],["S41C1Q","Image Tone Quarter","#d8dce3",4],["S30A1Q","Zenith Heights Quarter","#cae0dd",4],["S32A1Q","Dewpoint Quarter","#d2e4e5",4],["S34G1Q","Spritzig Quarter","#aadff1",4],["S37H1Q","Featherbed Quarter","#cfe2ef",4],["S41G1Q","Hindsight Quarter","#d9e0ee",4],["S35B1Q","Vanilla Ice Quarter","#c8dae2",4],["S41E1Q","Pale Lilac Quarter","#dae0ea",4],["S30A1H","Zenith Heights Half","#b9d5d3",4],["S32A1H","Dewpoint Half","#c3dadd",4],["S34G1H","Spritzig Half","#92d5ed",4],["S37H1H","Featherbed Half","#c0d9ea",4],["S41G1H","Hindsight Half","#ccd6e9",4],["S35B1H","Vanilla Ice Half","#b8ced9",4],["S41E1H","Pale Lilac Half","#ced5e4",4],["S30A1","Zenith Heights","#a6c7c5",4],["S32A1","Dewpoint","#b2ced2",4],["S34G1","Spritzig","#75c9e7",4],["S37H1","Featherbed","#aecde5",4],["S41G1","Hindsight","#bdc9e2",4],["S35B1","Vanilla Ice","#a4c0cd",4],["S41E1","Pale Lilac","#bfc8db",4],["S30A3","Spartacus","#75a5a6",4],["S32A3","Equanimity","#83aab2",4],["S34G3","Liberty","#36a9ce",4],["S37H3","Sky Diver","#83aed2",4],["S41G3","Foresight","#94aad2",4],["S35B3","Bay&#x27;s Water","#7a9bac",4],["S41E3","Grey Flannel","#98a5c2",4],["S30A5","Cool Waters","#487877",4],["S32A5","La Pineta","#578087",4],["S34G5","Jacuzzi","#0081ac",4],["S37H5","Blue Smart","#5788b4",4],["S41G5","Marvellous","#6a81b3",4],["S35B5","Happy Days","#4f7081",4],["S41E5","Quantum Blue","#6d7a9b",4],["S30A7","Depth Charge","#345858",4],["S32A7","Jimbaran Bay","#3d5d64",4],["S34G7","Mamala Bay","#00638b",4],["S37H7","Too Blue","#3d6895",4],["S41G7","Blue Dude","#495e93",4],["S35B7","Sailing Safari","#395160",4],["S41E7","Alpha Centuri","#4d5878",4],["S30A9","Licorice Green","#294041",4],["S32A9","Little Mermaid","#2c464a",4],["S34G9","Sea Paint","#005479",4],["S37H8","Blue Regent","#275c91",4],["S41G8","Mystification","#2a4270",4],["S35A8","Surf&#x27;n&#x27;Dive","#374854",4],["S41D8","Diplomatic","#39455c",4],["S22C1Q","French Limestone Quarter","#e1e8db",5],["S26A1Q","White Box Quarter","#dae5df",5],["S26C1H","Meadow Lane Half","#cee0d7",5],["S28A1H","Antarctica Lake Half","#ceddda",5],["S20A1H","Lamb&#x27;s Ears Half","#d6d9cb",5],["S23A1H","Silver Grass Half","#d4dad1",5],["S18A1","Pale Tendril","#cfcdbd",5],["S18D2","Eaves","#ceccad",5],["S26C1","Meadow Lane","#bfd6cb",5],["S28A3","Duck Egg Blue","#97b2b0",5],["S26A3","Tiamo","#9ab1a9",5],["S26C5","Silent Sage","#729986",5],["S20D3","Garden Pond","#afc09d",5],["S22C3","Pale Sage","#acbca0",5],["S20C3","Herb Planter","#b1b89c",5],["S23C5","Dinosaur","#80987c",5],["S19C3","White Cabbage","#b1b49a",5],["S20A3","Moorland","#a7aa9a",5],["S22A3","Tranquil Green","#a5ae9e",5],["S19C5","Olive Leaf","#8b8c6e",5],["S22C7","Mildura","#66785f",5],["S26E9","Green Paw Paw","#0c6245",5],["S26B9","Highland Green","#2f5042",5],["S26A9","Government Green","#32493c",5],["S19G9","Golden Passionfruit","#b9bb31",5],["S22G9","Pea Case","#739c3c",5],["S23C9","Plasticine","#4a613a",5],["S20C9","Scott&#x27;s Pine","#60653a",5],["S18D9","Olive Blend","#5f593c",5],["S28F9","Forest Splendor","#006e5c",5],["S18G9","Enigma","#bebc35",5],["S20F7","Venus Flytrap","#97b44c",5],["S22E9","Mangrove Leaf","#627c3d",5],["S20B9","Base Camp","#585c39",5],["S18D7","Tambo Tank","#7d7c57",5],["S23A9","Spinach Green","#455338",5],["S26G9","Picturebook Green","#007f48",5],["S28H9","Pharaoh&#x27;s Gem","#007362",5],["S18G7","Wiggle","#c9c343",5],["S22G7","Fluoro Green","#77af54",5],["S22E7","Blade Green","#6b9265",5],["S20C7","Lush Hosta","#6d755b",5],["S18D5","Domain","#9c996e",5],["S23A6","Remote Control","#6d7969",5],["S26G7","Too Green","#3da37c",5],["S28H7","Teal Trip","#00a08e",5],["S18G5","Species","#dcd467",5],["S22G5","Lime Parfait","#98c576",5],["S22E5","Cressida","#8cad7b",5],["S20C5","Green Spruce","#8c9372",5],["S18E5","Rodham","#b2af6c",5],["S23A5","Misty Moss","#7a8675",5],["S26G5","Peppermint Fresh","#64be9b",5],["S28H5","Magnetic Magic","#3ebbad",5],["S18G3","Citrino","#e8e49b",5],["S22G3","Embroidered Silk","#b9dba7",5],["S22E3","Spring Green","#afcca5",5],["S18E3","Celery Green","#cdcc99",5],["S23A3","Grass Sands","#a2aea0",5],["S26G3","Chloride","#93d7bf",5],["S28H3","Island Sea","#81d6cd",5],["S18G1","Apple Slice","#f0eebe",5],["S22G1","Fresh Lime","#d8f1ca",5],["S22E1","Lime Sherbet","#cbdcbf",5],["S20C1","Green Frost","#d1d5be",5],["S23A1","Silver Grass","#c5cec3",5],["S26G1","Shutterbug","#beedda",5],["S28H1","Chalk Blue","#afe8de",5],["S18G1H","Apple Slice Half","#f3f2cd",5],["S22G1H","Fresh Lime Half","#e2f4d6",5],["S22E1H","Lime Sherbet Half","#d8e5ce",5],["S20C1H","Green Frost Half","#dcdfcd",5],["S18D1","Medlar","#d6d6be",5],["S26G1H","Shutterbug Half","#cef1e3",5],["S28H1H","Chalk Blue Half","#c3eee6",5],["S18G1Q","Apple Slice Quarter","#f5f4d9",5],["S22G1Q","Fresh Lime Quarter","#eaf5e0",5],["S20E1H","Security Half","#e1e9cf",5],["S19D1Q","Celery Satin Quarter","#e5e9d8",5],["S18D1H","Medlar Half","#e0e0cc",5],["S22A1Q","Gentle Calm Quarter","#dde2d8",5],["S26G1Q","Shutterbug Quarter","#daf4e9",5],["S28H1Q","Chalk Blue Quarter","#d3f2ec",5],["S19G1Q","Green Glacier Quarter","#f1f4db",5],["S23G1Q","Pastel Mint Quarter","#e4f5e1",5],["S20E1","Security","#d6e1c1",5],["S19D1H","Celery Satin Half","#dbe1cc",5],["S20E1Q","Security Quarter","#e8eeda",5],["S22A1H","Gentle Calm Half","#d2d9cd",5],["S26E1Q","Otto Ice Quarter","#d9ede4",5],["S28F1H","Sea Foam Half","#c4e8e5",5],["S19G1H","Green Glacier Half","#eef3d0",5],["S23G1H","Pastel Mint Half","#dbf3d7",5],["S19E3","Honeydew","#c1cc9d",5],["S19D1","Celery Satin","#d0d8bd",5],["S22E1Q","Lime Sherbet Quarter","#e2ecd9",5],["S22A1","Gentle Calm","#c5cdbf",5],["S26E1H","Otto Ice Half","#cce6dc",5],["S28F1","Sea Foam","#b1e0dd",5],["S19G1","Green Glacier","#e9efc1",5],["S23G1","Pastel Mint","#cff0cc",5],["S19D3","Pale Spring","#b4bd98",5],["S19C1","Garlic Suede","#cdd1bc",5],["S26E1","Otto Ice","#beded1",5],["S28F3","Surf Wash","#87cdc7",5],["S19G3","Fresh Frappe","#dde59d",5],["S23G3","Fizz","#b2daaa",5],["S20D5","Lady Fern","#90a073",5],["S19D5","Tropical Moss","#93996f",5],["S22A5","Dollar","#7d8673",5],["S26E3","Mint Twist","#97cab7",5],["S28F5","Emerald Wave","#4fb2a5",5],["S19G5","Soft Fern","#cad368",5],["S23G5","Applegate","#8cc379",5],["S20D7","Equatorial Forest","#71845e",5],["S19D7","Variegated Frond","#757d59",5],["S22B7","Bracken Green","#626f5c",5],["S26E5","Cool Spearmint","#6eaa90",5],["S28F7","Tsunami","#289183",5],["S19G7","Rainforest Glow","#b6c246",5],["S23G7","Techno Green","#6cac58",5],["S19E5","Umbrella Green","#a3ae70",5],["S19C9","Green Olive","#5e5938",5],["S19C7","Flinder&#x27;s Green","#6d6f57",5],["S22A9","Banksia Leaf","#4b5439",5],["S26E7","Molly Robins","#4d8a70",5],["S28C8","Alliance","#2b645d",5],["S18F9","Plantain","#96913a",5],["S23E9","Nereus","#4e793c",5],["S19E7","Pretty Maiden","#859456",5],["S19D9","Deep Reed","#686539",5],["S19B9","Bronze Icon","#575337",5],["S18B9","Ecology Green","#4c493b",5],["S28A9","Black Water","#2e4744",5],["S20F9","Gecko","#8c9e3b",5],["S23G8","Zatar Leaf","#62a348",5],["S23C6","Toad","#748c70",5],["S22B9","Shallot Leaf","#515c3a",5],["S20A9","Amazon Depths","#505238",5],["S18B7","Jungle Cloak","#686859",5],["S26A7","Armada","#526760",5],["S28A7","Angry Ocean","#4e6563",5],["S18F7","Olive Reserve","#a6a74d",5],["S23E7","Milpa","#6a9663",5],["S20A6","Army Greens","#727564",5],["S18B5","Paris Creek","#878772",5],["S26C7","Wishard","#527769",5],["S28C7","Sink Hole","#48716c",5],["S20F5","Young Leaf","#b2c86e",5],["S23E5","Tendril","#88af7d",5],["S23C3","Bryophyte","#a6bea6",5],["S22C5","Backyard","#879776",5],["S20A5","Battle Dress","#7e8170",5],["S18B3","Still","#aeae9b",5],["S26A5","Misty Moore","#70887f",5],["S28A5","Classic Calm","#6a8783",5],["S20F3","Frisky","#cddda1",5],["S23E3","Mint Circle","#a8cda9",5],["S23C1","Marsh Fog","#c5d7c6",5],["S28C5","Green Turquoise","#66948f",5],["S20G1","New Hope","#e4efc1",5],["S23E1","Spring Burst","#cae0c8",5],["S23C1H","Marsh Fog Half","#d3e1d3",5],["S22C1","French Limestone","#cad6c2",5],["S20A1","Lamb&#x27;s Ears","#c8ccbb",5],["S18A1H","Pale Tendril Half","#dad9cb",5],["S26C3","Diorite","#9cbfaf",5],["S28C3","Turner&#x27;s Light","#92bbba",5],["S20G1H","New Hope Half","#ebf2cf",5],["S23E1H","Spring Burst Half","#d7e8d5",5],["S23C1Q","Marsh Fog Quarter","#dee9dd",5],["S22C1H","French Limestone Half","#d6e0cf",5],["S18A1Q","Pale Tendril Quarter","#e3e2d6",5],["S20G1Q","New Hope Quarter","#eff4db",5],["S23E1Q","Spring Burst Quarter","#e1eedf",5],["S28A1Q","Antarctica Lake Quarter","#dae5e3",5],["S18D1Q","Medlar Quarter","#e8e8d8",5],["S23A1Q","Silver Grass Quarter","#dfe4dc",5],["S28A1","Antarctica Lake","#bed1cf",5],["S28C1","Greenland Ice","#b8d7d5",5],["S18E1Q","Lilylock Quarter","#eeeed9",5],["S19E1Q","Mountain Spring Quarter","#eaeeda",5],["S20C1Q","Green Frost Quarter","#e5e8d9",5],["S20A1Q","Lamb&#x27;s Ears Quarter","#e0e3d7",5],["S28C1H","Greenland Ice Half","#c9e1df",5],["S18E1H","Lilylock Half","#e9e9ce",5],["S19E1H","Mountain Spring Half","#e3e8cf",5],["S26C1Q","Meadow Lane Quarter","#d9e8e0",5],["S19C1H","Garlic Suede Half","#d9ddcb",5],["S19C1Q","Garlic Suede Quarter","#e3e5d6",5],["S26A1H","White Box Half","#cedcd5",5],["S28F1Q","Sea Foam Quarter","#d3eeeb",5],["S18E1","Lilylock","#e1e1c0",5],["S19E1","Mountain Spring","#d9e0c0",5],["S26A1","White Box","#bfd0c9",5],["S28C1Q","Greenland Ice Quarter","#d6e9e6",5],["S16H1Q","Cowardly Custard Quarter","#f8f4da",6],["S16H1H","Cowardly Custard Half","#faf2ce",6],["S15G1Q","Sand Diamond Quarter","#f9f0d7",6],["S15F1Q","Shell Haven Quarter","#f3ecd9",6],["S14E1Q","Gentle Touch Quarter","#f0e7d4",6],["S14F1H","Jodhpurs Half","#f0e3c6",6],["S15F1","Shell Haven","#ebddbf",6],["S12E1","Scallywag","#e3d4bb",6],["S13E1","Raw Cotton","#e3d2ba",6],["S15G1H","Sand Diamond Half","#f9eccb",6],["S15G1","Sand Diamond","#f9e6bb",6],["S14F1","Jodhpurs","#ead9b6",6],["S14E1","Gentle Touch","#e2d3b8",6],["S15H3","Lemon Delicious","#fce398",6],["S16H3","Pale Daffodil","#fde599",6],["S16H8","Dandelion Yellow","#fcd33b",6],["S14H9","Gold Rush","#fcba2d",6],["S14F3","Clay Bake","#e0c38e",6],["S13E3","Smooth Beech","#d2b896",6],["S13E5","Eastern Gold","#b7976c",6],["S16G9","Ogen Melon","#d6ac34",6],["S16F8","Creed","#c0a04a",6],["S12G9","Gold Treasure","#c37b33",6],["S12F9","Desert Boot","#a26e3b",6],["S14E9","Mango Squash","#8e6838",6],["S16H7","Softsun","#f3c440",6],["S14H7","Midas Touch","#e8b744",6],["S15G7","Capital Yellow","#e6b545",6],["S15F7","Topelo Honey","#c09c4d",6],["S12G7","Gold Foil","#d99a4c",6],["S12F7","Scarab","#bc8b4f",6],["S15E7","Wheatmeal","#9e8050",6],["S16H5","Sunbound","#f9d464",6],["S14H5","Corn Kernel","#f2c964",6],["S15G5","Bee Hall","#f1c664",6],["S15F5","Wax Way","#d3b266",6],["S12G5","Yellow Varnish","#e9b165",6],["S12F5","Burnside","#d0a263",6],["S14H3","Cheesy Grin","#fade95",6],["S15G3","Butter Ridge","#f9dc96",6],["S15F3","Garden Picket","#e4cd95",6],["S12G3","Beeswing","#f5ce96",6],["S12F3","Birdseed","#e1bf8d",6],["S14E3","Savannah","#d1ba92",6],["S16H1","Cowardly Custard","#fbeebf",6],["S14H1","Ringlet","#faebbe",6],["S13F1","Curd","#f7dfb9",6],["S14H1H","Ringlet Half","#f9efcd",6],["S15F1H","Shell Haven Half","#f0e6ce",6],["S13F1H","Curd Half","#f9e7c9",6],["S12E1H","Scallywag Half","#ebdeca",6],["S14E1H","Gentle Touch Half","#eadec7",6],["S15H1Q","Solar Quarter","#f9f1d4",6],["S14H1Q","Ringlet Quarter","#f8f2d9",6],["S13F1Q","Curd Quarter","#f9ecd6",6],["S13E1Q","Raw Cotton Quarter","#f1e7d6",6],["S14F1Q","Jodhpurs Quarter","#f3ead3",6],["S12E1Q","Scallywag Quarter","#f0e7d6",6],["S15H1H","Solar Half","#faedc8",6],["S16G1","Tinker Light","#fbeab7",6],["S16F1Q","Arctic Daisy Quarter","#f3efd8",6],["S13E1H","Raw Cotton Half","#ebdeca",6],["S15E1Q","Pollinate Quarter","#efe8d7",6],["S15H1","Solar","#fae8b8",6],["S16G1H","Tinker Light Half","#faefc8",6],["S16F1H","Arctic Daisy Half","#f0eacd",6],["S15E1H","Pollinate Half","#ebe0ca",6],["S16G1Q","Tinker Light Quarter","#f9f2d4",6],["S16F1","Arctic Daisy","#ebe3be",6],["S13F5","Soft Suede","#cfa464",6],["S15E1","Pollinate","#e3d5bb",6],["S16D3","Vast Escape","#d1c395",6],["S15H5","Happy","#f8d164",6],["S16G3","Sundaze","#fade97",6],["S16F3","Gentle Sands","#e5d398",6],["S14F5","Ginger Crunch","#cea663",6],["S15F8","Goldie","#c8973f",6],["S13F3","Sideshow","#e1c290",6],["S15E3","Beaten Track","#d1bc92",6],["S15H6","Stella","#f5ca56",6],["S16G5","Pale Buttercup","#f3ca64",6],["S16F4","Camel Cord","#dfc781",6],["S14F7","Alluvial Inca","#ba8e4b",6],["S15G9","Sun Dial","#c79535",6],["S13E7","Grecian Gold","#9e7c54",6],["S13F7","Deep Sun","#bc8c4c",6],["S16D5","Gypsy Canvas","#b6a167",6],["S15H8","Golden Marguerite","#fcc536",6],["S16G7","Sharp Yellow","#ebb943",6],["S16F6","Warm Woollen","#cfb059",6],["S14F8","Centra","#c08b45",6],["S13F8","Red Ochre","#bc8743",6],["S13E8","Warm Spice","#987444",6],["S15E9","Sneezy","#9d7638",6],["S15E5","Grainfield","#b79a66",6],["S15D8","Research","#8c7344",6],["S16D8","Yellow Nile","#947e49",6],["S16D7","Camel Caravan","#9c8752",6],["S11G1Q","Spanish Cream Quarter","#faefd9",7],["S11G1H","Spanish Cream Half","#fae8cd",7],["S11G1","Spanish Cream","#fbe3bf",7],["S12F1","Pastry","#f7dcb7",7],["S10F1Q","Unbleached Calico Quarter","#f8e8d6",7],["S12F1H","Pastry Half","#f9e5c7",7],["S10F1","Unbleached Calico","#f5d5ba",7],["S10F3","Lama","#dfb995",7],["S08G1Q","Quilt Quarter","#fae8dd",7],["S09G1H","Delicate Bloom Half","#f6dcce",7],["S08F1","Camisole","#fbd6c6",7],["S09G3","Pink Tulle","#deb29a",7],["S08G3","Coral Blossom","#f7baa2",7],["S08F3","Diva Rouge","#e7b7a4",7],["S08G5","Apricot Fizz","#eb9a76",7],["S06G7","Annular","#e17360",7],["S08F5","Italian Clay","#d69579",7],["S08F7","Terracotta Chip","#c4795d",7],["S09G7","Apricot Mix","#b37456",7],["S10F9","Hot Ginger","#a26336",7],["S08G7","Show Business","#dd7f5a",7],["S08G9","Bright Delight","#cc5426",7],["S08F8","Orangeade","#b55732",7],["S06H9","Red Terra","#ad4430",7],["S11G9","Golden Orange","#d3813a",7],["S11F8","Condiment","#b97c41",7],["S11G7","Golden Koi","#e99e4b",7],["S11F7","Tuscan Sunset","#bd8753",7],["S09G5","Surprise","#c98f6e",7],["S06G5","Scampi","#ed9183",7],["S12F1Q","Pastry Quarter","#f9ebd4",7],["S11G5","Brasso","#f2b66a",7],["S10F5","Raw Umber","#cc996a",7],["S06G3","English Rose","#f6b4ac",7],["S09G8","Temptress","#ac542d",7],["S11G3","Paw Paw","#fad19c",7],["S11F5","Great Dane","#d19f68",7],["S09G1","Delicate Bloom","#f2d0bf",7],["S06G1","Tea Party","#ffd5cf",7],["S08G1","Quilt","#fcd6c6",7],["S11F3","Dromedary","#e3bf94",7],["S08F1H","Camisole Half","#fce0d3",7],["S06G1H","Tea Party Half","#fedfd9",7],["S08G1H","Quilt Half","#fbe0d3",7],["S10F1H","Unbleached Calico Half","#f7e0c9",7],["S09G1Q","Delicate Bloom Quarter","#f7e5d9",7],["S08F1Q","Camisole Quarter","#fbe8dd",7],["S06G1Q","Tea Party Quarter","#fce7e3",7],["S10F7","Cinnamon Sand","#b77e53",7],["S04C1H","Lip Gloss Half","#e7d8d4",8],["S05E1Q","Hugo Quarter","#f1e3e0",8],["S05D1H","Porcelain Half","#e6d8d6",8],["S05E1","Hugo","#e5cecb",8],["S02F1Q","Pink Pandora Quarter","#eedddf",8],["S48F1Q","Pretty Blossom Quarter","#ecdbe1",8],["S47G1H","Favourite Lady Half","#ead3e0",8],["S05G1Q","Pink Clay Quarter","#fbe6e4",8],["S06F1H","Elusive Half","#fdded9",8],["S03G1H","Fairy Wings Half","#fbdcdc",8],["S05F3","Pink Dust","#e3b2b1",8],["S06F3","Pensive Pink","#e9b3ac",8],["S05F5","Primrose","#d08f89",8],["S05E5","Evening Blush","#c38e86",8],["S04D7","Terra Rose","#9e6a66",8],["SB7E8","Symphony Red","#aa3030",8],["S06F9","Carmen Miranda","#903b2f",8],["S05F8","Red Stop","#97342c",8],["S05E8","Capsicum Red","#76362e",8],["S02F9","Very Cherry","#722933",8],["S04E9","Henna Red","#6d3330",8],["S04D8","Belly Fire","#773938",8],["S04F9","Red Box","#94302f",8],["S02G9","Enchanted Red","#8d343f",8],["S05E9","Rusted Crimson","#60352e",8],["S04C8","Murray Red","#6b3938",8],["S48G9","Velvet Dream","#892f4e",8],["S46H8","School Captain","#66395b",8],["S06E8","Reddy Brown","#7a443a",8],["S03D8","Moroccan Leather","#6d4444",8],["S01G9","Scarlet Ribbons","#a4334e",8],["S48E8","Paris Pink","#7a4656",8],["S06F7","Pompeian Pink","#c77462",8],["S05G7","Persimmon","#c97168",8],["S02H7","Energy Peak","#bb5f63",8],["S05E7","Tangier","#a86f64",8],["S06D7","Discretion","#9e6c62",8],["S03D7","Musk Deer","#7e5a58",8],["S01G7","Hot Flamingo","#b35968",8],["S47G7","Pink Tulip","#985573",8],["S06F5","Paddy","#da9284",8],["S05G5","Tuscan Image","#dc908c",8],["S02H5","Galah","#d17f85",8],["S06D5","Venetian Pink","#ba8c83",8],["S03D5","Neapolitan","#9b7877",8],["S01G5","Violet Orchid","#ca798b",8],["S47G5","Choral Singer","#b67797",8],["S05G3","Naked Rose","#eab3b2",8],["S02H3","Perennial Phlox","#e6a7ae",8],["S05E3","Princess Pink","#deb2af",8],["S06D3","Victoriana","#d6b1ad",8],["S03D3","Smoky Quartz","#bfa0a0",8],["S01G3","Iced Vovo","#e0a4b3",8],["S47G3","Enhance","#d1a4c0",8],["S06F1","Elusive","#fed4cf",8],["S05G1","Pink Clay","#ffd3d0",8],["S03G1","Fairy Wings","#fad0d2",8],["S06D1","Pianissimo","#e5cec9",8],["S02F1","Pink Pandora","#e0c4c9",8],["S01G1","Soft Satin","#eec5cf",8],["S48H1","Lily Legs","#edc6d6",8],["S05G1H","Pink Clay Half","#fddedc",8],["S05E1H","Hugo Half","#ecd9d7",8],["S06D1H","Pianissimo Half","#ecdad5",8],["S02F1H","Pink Pandora Half","#e9d2d6",8],["S01G1H","Soft Satin Half","#f2d3da",8],["S48H1H","Lily Legs Half","#f2d3e0",8],["S06F1Q","Elusive Quarter","#fbe6e2",8],["S03G1Q","Fairy Wings Quarter","#fae4e4",8],["S02D1Q","Aroma Quarter","#e6dbdd",8],["S06D1Q","Pianissimo Quarter","#f1e3df",8],["S01G1Q","Soft Satin Quarter","#f5dee3",8],["S05F1Q","Marshmallow Magic Quarter","#f5e5e3",8],["S04E1Q","Nursery Quarter","#f5e4e5",8],["S02G1Q","Feather Boa Quarter","#f7e0e2",8],["S01E1Q","Bunny Pink Quarter","#ebdbde",8],["S47G1Q","Favourite Lady Quarter","#efdee7",8],["S04F1Q","Precious Pink Quarter","#f6e4e4",8],["S05F1H","Marshmallow Magic Half","#f3dcdb",8],["S04D1H","Slightly Rose Half","#edd9d9",8],["S01E1H","Bunny Pink Half","#e3ced3",8],["S04C1Q","Lip Gloss Quarter","#ede2de",8],["S04D1Q","Slightly Rose Quarter","#f1e3e2",8],["S48F1H","Pretty Blossom Half","#e4cfd7",8],["S48H1Q","Lily Legs Quarter","#f4dee7",8],["S04F1H","Precious Pink Half","#f3dbdd",8],["S04E1H","Nursery Half","#f3dbdd",8],["S05F1","Marshmallow Magic","#efd0d0",8],["S05D1Q","Porcelain Quarter","#ede2e0",8],["S48F1","Pretty Blossom","#dcc1cc",8],["S48E1Q","Pelican Bill Quarter","#e9dade",8],["S04F1","Precious Pink","#efcfd2",8],["S04E1","Nursery","#efcfd2",8],["S02G1H","Feather Boa Half","#f4d5d9",8],["S01E1","Bunny Pink","#dec2c9",8],["S04C1","Lip Gloss","#decbc7",8],["S47G1","Favourite Lady","#e3c5d7",8],["S48E1H","Pelican Bill Half","#e0ced4",8],["S04F3","Pretty Pink","#eab2b3",8],["S02G1","Feather Boa","#f1c8cd",8],["S04D1","Slightly Rose","#e5cece",8],["S02D1H","Aroma Half","#ddcfd2",8],["S05D1","Porcelain","#dfcccb",8],["S48G3","Gizmo","#d3a1b6",8],["S48E1","Pelican Bill","#d6c0c8",8],["S04E3","Perfect Pink","#e4b1b3",8],["S04D3","Mary Rose","#d6afaf",8],["S01E3","Casa Talec","#c49ca6",8],["S04C3","Dusky","#c3aaa8",8],["S02D1","Aroma","#d2c0c5",8],["S48H3","Pink Gin","#dea3bb",8],["S02E3","Windflower","#bc9ca3",8],["S04E5","Tongue","#d18e8d",8],["S02G3","Prom","#d9a5ac",8],["S01E5","Tea Rose","#a4707a",8],["S04C5","Attitude","#a38784",8],["S05D3","Lacey","#c9adaa",8],["S48H5","Watermelon Pink","#c67593",8],["S48F3","Strawberry Mousse","#c69eaf",8],["S04F5","Coral Atoll","#dc8f8d",8],["S02G5","Pleasure","#c17c83",8],["S04D5","Smoky Pink","#ba8a87",8],["S01E7","Loganberry","#89535a",8],["S02E5","March Pink","#9a7177",8],["S05D5","Pink Moroccan","#a98781",8],["S48G5","Strawberry Surprise","#b9748e",8],["S48F5","Never Forget","#a67284",8],["S04F7","Splendid Coral","#c9706a",8],["S04E7","Terra Tone","#b56d6a",8],["S02E7","Lampoon","#805457",8],["S05D7","Creamed Muscat","#8a6761",8],["S48H7","Pink Parakeet","#ad5471",8],["S48F7","Berry Smoothie","#885362",8],["S05F7","Morocco","#b56f66",8],["S02G7","Camellia","#a85c60",8],["S02E8","Musk Memory","#77454a",8],["S05D8","Burnished Bark","#6a3a36",8],["S04C7","Burnt Red","#806461",8],["S48G7","Mulberry Mix","#9e546d",8],["S48F8","Raspberry Macaroon","#843048",8]]};</script>
+<script>
+(function(){
+'use strict';
+var E = window.ColorEngine;
+var $ = function(id){ return document.getElementById(id); };
+var OFFICIAL = window.DULUX_DB;
+
+var S = {
+  stream:null, track:null, facing:'environment', frozen:false, frozenData:null,
+  gains:null, calibLabel:'', calibMode:'white', cardTarget:null,
+  db:[], dbLabel:'official', customDb:null, settings:{box:64, frames:8},
+  fx:0.5, fy:0.5, busy:false, aeLocked:false,
+  torchOn:false, torchSupported:false, calibContext:null, invalidReason:''
+};
+
+/* A calibration is only valid for the light it was made under. Any change to
+ * the light source (torch on/off, camera restart, long elapsed time) invalidates it. */
+function calibTarget(){
+  if(S.calibMode==='dulux' && S.cardTarget) return S.cardTarget;
+  return [246,246,246];
+}
+function invalidateCalib(reason){
+  if(!S.gains && S.invalidReason===reason) return;
+  S.gains=null; S.calibContext=null; S.invalidReason=reason;
+  save(); syncCalibUI();
+}
+
+/* ---------- persistence ---------- */
+function load(){
+  try{
+    var raw = JSON.parse(localStorage.getItem('dulux_scan_v1')||'{}');
+    if(raw.gains && raw.gains.length===3) {
+      S.gains=raw.gains; S.calibLabel=raw.calibLabel||'已校准';
+      S.calibContext=raw.calibContext||null;
+    }
+    if(raw.settings){ S.settings.box=+raw.settings.box||64; S.settings.frames=+raw.settings.frames||8; }
+    if(raw.customDb && raw.customDb.length){ S.customDb=raw.customDb; }
+    // A reload always closes the torch. A calibration made under torch is now void.
+    if(S.gains && S.calibContext && S.calibContext.torch){
+      S.gains=null; S.calibContext=null;
+      S.invalidReason='上次校准是在补光灯下做的，页面重载后补光已关闭';
+    }
+  }catch(e){}
+}
+function save(){
+  try{
+    localStorage.setItem('dulux_scan_v1', JSON.stringify({
+      gains:S.gains, calibLabel:S.calibLabel, calibContext:S.calibContext, settings:S.settings,
+      customDb: S.dbLabel==='custom' ? S.db.map(function(c){return {code:c.code,name:c.name,hex:c.hex,family:c.family};}) : null
+    }));
+  }catch(e){}
+}
+function buildDb(raw){
+  return raw.map(function(c){
+    var lab = E.hexToLab(c.hex);
+    return lab ? {code:c.code, name:c.name, hex:c.hex, family:c.family||'', lab:lab} : null;
+  }).filter(Boolean);
+}
+function setOfficial(){
+  S.db = buildDb(OFFICIAL.colours.map(function(c){
+    return {code:c[0],name:c[1],hex:c[2],family:OFFICIAL.families[c[3]]};
+  }));
+  S.dbLabel='official';
+  $('dbBadge').textContent='AU 官方色库 '+S.db.length+' 色';
+  $('dbBadge').className='badge';
+}
+function syncDbUI(){
+  $('dbCount').textContent=S.db.length+' 色';
+  $('dbInfo').textContent = S.dbLabel==='official'
+    ? '当前：Dulux Australia 官方公开色彩目录，'+S.db.length+' 个 Atlas 色号，已内嵌可离线使用。'
+    : '当前：你导入的自定义色库，'+S.db.length+' 色（存在本机浏览器）。点「恢复官方 1101 色」可切回。';
+  $('sourceInfo').textContent = S.dbLabel==='official'
+    ? 'dulux.com.au 的 9 个色系目录（Whites & Neutrals / Greys / Browns / Purples / Blues / Greens / Yellows / Oranges / Reds），共 '+S.db.length+' 色。抽样交叉核对：Vivid White™ SW1G1 = #f7f8f4，与官方单色页一致。地区体系不同：中国站用 30YY 69/048 式编码，北美站用 DLX1001-1，均可通过 CSV 导入。'
+    : '自定义导入色库。请以你手上的官方色卡为准，网页色值仅为参考。';
+}
+
+/* ---------- ui helpers ---------- */
+var toastTimer;
+function toast(msg){
+  var t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove('show'); },2600);
+}
+function syncCalibUI(){
+  var p=$('calibPill');
+  if(S.gains){
+    p.classList.add('on'); p.classList.remove('warn');
+    $('calibText').textContent='已校准'+(S.calibLabel?' · '+S.calibLabel:'');
+    var age=S.calibContext ? Math.round((Date.now()-S.calibContext.time)/60000) : null;
+    $('gainInfo').textContent='当前增益 R '+S.gains[0].toFixed(3)+' / G '+S.gains[1].toFixed(3)+' / B '+S.gains[2].toFixed(3)+'。'+
+      (S.calibLabel||'')+'。校准于'+(age===null?'未知时间':(age<1?'刚刚':age+' 分钟前'))+
+      '，'+(S.calibContext&&S.calibContext.torch?'补光开':'补光关')+'。换光源、开关补光或隔一段时间请用「校验光照」复核。';
+  }else{
+    p.classList.remove('on');
+    p.classList.toggle('warn',!!S.invalidReason);
+    $('calibText').textContent=S.invalidReason?'校准已失效':'未校准';
+    $('gainInfo').textContent=S.invalidReason
+      ? '⚠ '+S.invalidReason+'，请重新校准白卡。'
+      : '未校准。强烈建议先做一次校准，否则自动白平衡会把颜色带偏。';
+  }
+}
+function syncTorch(){
+  var p=$('torchPill'), b=$('btnTorch');
+  p.classList.toggle('torch',S.torchOn);
+  $('torchText').textContent = !S.torchSupported ? '补光不可用' : (S.torchOn?'补光已开 · 需重校':'补光关闭');
+  b.disabled=!S.torchSupported;
+  b.classList.toggle('torch-on',S.torchOn);
+  b.textContent=S.torchOn?'补光灯 开':'补光灯';
+  $('torchCapVal').textContent = S.torchSupported ? (S.torchOn?'已开启':'可用') : '不支持';
+  $('torchInfo').textContent = S.torchSupported
+    ? '这台设备允许网页控制常亮补光。注意：补光是稳定光照的手段，不是标准光源。'
+    : '当前浏览器/镜头未提供 torch 能力（iOS Safari、前置镜头、桌面浏览器常见）。可以用外部台灯加柔光代替，操作时同样要在该光照下重新校准。';
+  $('calibTorchNote').innerHTML = S.torchOn
+    ? '<b>补光灯当前开着。</b>请保持开启状态，用白卡在<b>这个补光下</b>完成校准。测色期间不要关灯。'
+    : '<b>补光灯当前关闭。</b>若测色时打算开补光，请先打开再校准；开关补光会让已有校准立即作废。';
+}
+function detectTorch(){
+  S.torchOn=false; S.torchSupported=false;
+  try{
+    var caps=S.track && S.track.getCapabilities ? S.track.getCapabilities() : {};
+    S.torchSupported = caps.torch!==undefined && caps.torch!==false;
+  }catch(e){ S.torchSupported=false; }
+  syncTorch();
+  // Changing the camera track changes the light. Any stored calibration is stale.
+  if(S.gains) invalidateCalib('镜头/相机已重启，光照条件可能变了');
+}
+async function toggleTorch(){
+  if(!S.track || !S.torchSupported){ toast('这台设备或浏览器不提供网页补光控制'); return; }
+  var next=!S.torchOn;
+  try{
+    await S.track.applyConstraints({advanced:[{torch:next}]});
+    S.torchOn=next;
+    if(S.gains) invalidateCalib('补光灯状态已改变');
+    syncTorch();
+    toast(next?'补光已开 · 原校准作废，请重新校准':'补光已关 · 原校准作废，请重新校准');
+  }catch(err){
+    toast('补光切换失败：'+((err&&err.name)||'设备拒绝')+'（低电量或机身过热时系统会禁用闪光灯）');
+  }
+}
+/* Re-measure the reference card with the CURRENT gains. If it no longer lands on
+ * the calibration target, the light has drifted and the calibration is stale. */
+async function verifyCalibration(){
+  if(S.busy) return;
+  if(!S.gains){ toast(S.invalidReason||'请先完成一次白卡校准'); return; }
+  S.busy=true; $('btnVerify').disabled=true;
+  try{
+    var s=await sampleMulti(Math.max(6,S.settings.frames));
+    if(!s){ toast('取样失败'); return; }
+    var target=calibTarget();
+    var measured=E.applyGains(s.rgb,S.gains);
+    var dE=E.ciede2000(E.rgbToLab(measured),E.rgbToLab(target));
+    if(dE<2){
+      if(S.calibContext) S.calibContext.time=Date.now();
+      else S.calibContext={torch:S.torchOn,time:Date.now(),target:target,sourceLum:0};
+      save(); syncCalibUI();
+      toast('校准仍有效 · 白卡偏差 ΔE '+dE.toFixed(2)+'，可以继续测');
+    }else{
+      invalidateCalib('白卡实测偏差 ΔE '+dE.toFixed(2)+'，光照已经变了');
+      toast('光照漂了 · ΔE '+dE.toFixed(2)+'。原校准作废，请重新校准');
+    }
+  }finally{ S.busy=false; $('btnVerify').disabled=false; }
+}
+function contextWarnings(){
+  var w=[];
+  if(!S.gains){ w.push('尚未校准白卡，这次结果只作参考，颜色大概率是偏的。'); return w; }
+  if(S.calibContext){
+    if(typeof S.calibContext.torch==='boolean' && S.calibContext.torch!==S.torchOn)
+      w.push('补光状态与校准时不一致，必须重新校准。');
+    if(S.calibContext.time){
+      var age=(Date.now()-S.calibContext.time)/60000;
+      if(age>15) w.push('距上次校准已 '+Math.round(age)+' 分钟，光照可能变了，建议点「校验光照」复核。');
+    }
+  }
+  return w;
+}
+
+/* ---------- camera ---------- */
+var video=$('video'), capture=document.createElement('canvas');
+var cctx=capture.getContext('2d',{willReadFrequently:true});
+var freezeCanvas=$('freeze');
+
+async function startCamera(){
+  stopCamera();
+  $('camError').style.display='none';
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    $('camError').style.display='block';
+    $('camError').innerHTML='打不开相机：当前环境不是安全上下文。<br>安卓请用 <b>Chrome / Edge</b> 打开 <b>https://</b> 链接，直接打开本地 html 文件会被浏览器拒绝。';
+    return;
+  }
+  try{
+    var stream=await navigator.mediaDevices.getUserMedia({
+      audio:false,
+      video:{ facingMode:{ideal:S.facing}, width:{ideal:1920}, height:{ideal:1080} }
+    });
+    S.stream=stream;
+    S.track=stream.getVideoTracks()[0];
+    video.srcObject=stream;
+    await video.play();
+    capture.width=video.videoWidth; capture.height=video.videoHeight;
+    freezeCanvas.width=video.videoWidth; freezeCanvas.height=video.videoHeight;
+    $('btnScan').disabled=false;
+    S.aeLocked=false; syncAE();
+    detectTorch();
+  }catch(err){
+    $('camError').style.display='block';
+    $('camError').innerHTML='相机启动失败：'+(err && err.name ? err.name : err)+'<br>请允许摄像头权限；若在安卓上，确认用 https 打开并允许相机权限。';
+    console.error(err);
+  }
+}
+function stopCamera(){
+  if(S.stream){ S.stream.getTracks().forEach(function(t){t.stop();}); S.stream=null; S.track=null; }
+}
+function syncAE(){
+  var p=$('aePill');
+  p.classList.toggle('on',S.aeLocked);
+  $('aeText').textContent=S.aeLocked?'曝光/白平衡已锁':'自动曝光';
+}
+
+/* Map a point in the displayed (object-fit:cover) stage back to video pixel coords. */
+function stageToVideo(px,py){
+  var st=$('stage'), cw=st.clientWidth, ch=st.clientHeight;
+  var vw=capture.width, vh=capture.height;
+  var scale=Math.max(cw/vw, ch/vh);
+  var offX=(cw-vw*scale)/2, offY=(ch-vh*scale)/2;
+  return {x:(px-offX)/scale, y:(py-offY)/scale, scale:scale};
+}
+function placeReticle(){
+  var st=$('stage');
+  $('reticle').style.left=(S.fx*100)+'%';
+  $('reticle').style.top=(S.fy*100)+'%';
+  $('reticle').style.width=S.settings.box+'px';
+  $('reticle').style.height=S.settings.box+'px';
+  document.documentElement.style.setProperty('--box',S.settings.box+'px');
+}
+function currentImageData(){
+  if(S.frozen && S.frozenData) return S.frozenData;
+  if(!video.videoWidth) return null;
+  cctx.drawImage(video,0,0,capture.width,capture.height);
+  return cctx.getImageData(0,0,capture.width,capture.height);
+}
+
+/* Grab N frames and average in LINEAR light (physically correct for averaging light). */
+var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+async function sampleMulti(frames){
+  var acc=[0,0,0], n=0, pixels=0;
+  for(var i=0;i<frames;i++){
+    var img=currentImageData();
+    if(!img) return null;
+    var pt=stageToVideo(S.fx*$('stage').clientWidth, S.fy*$('stage').clientHeight);
+    var boxVideo=S.settings.box/(pt.scale||1);
+    var s=E.sampleRegion(img,pt.x,pt.y,boxVideo,0.10);
+    if(!s) return null;
+    acc[0]+=E.srgbToLinear(s.rgb[0]); acc[1]+=E.srgbToLinear(s.rgb[1]); acc[2]+=E.srgbToLinear(s.rgb[2]);
+    pixels=s.pixels; n++;
+    if(i<frames-1 && !(S.frozen && S.frozenData)) await sleep(65);
+  }
+  return {
+    rgb:[E.linearToSrgb(acc[0]/n),E.linearToSrgb(acc[1]/n),E.linearToSrgb(acc[2]/n)],
+    pixels:pixels, frames:n
+  };
+}
+
+/* ---------- main actions ---------- */
+async function calibrate(){
+  if(S.busy) return;
+  if(S.calibMode==='dulux' && !S.cardTarget){ toast('先从列表里选一张你手上的 Dulux 色卡'); return; }
+  if(!video.videoWidth && !(S.frozen&&S.frozenData)){ toast('相机还没就绪'); return; }
+  S.busy=true; $('btnCalibRun').disabled=true;
+  try{
+    var s=await sampleMulti(Math.max(6,S.settings.frames));
+    if(!s){ toast('取样失败'); return; }
+    // Guard against a clipped / blown-out reference card.
+    var mx=Math.max.apply(null,s.rgb);
+    if(mx>=252){ toast('参考卡过曝了，避开反光再来一次'); return; }
+    var target=calibTarget();
+    S.gains=E.computeWhiteGains(s.rgb,target);
+    S.calibLabel = S.calibMode==='dulux' ? 'Dulux '+(S.cardTargetName||'色卡') : '标准白卡';
+    S.calibContext={torch:S.torchOn, time:Date.now(), target:target, sourceLum:0.2126*s.rgb[0]+0.7152*s.rgb[1]+0.0722*s.rgb[2]};
+    S.invalidReason='';
+    save(); syncCalibUI(); syncTorch();
+    $('calibSheet').classList.remove('open');
+    toast('校准完成 · 增益 '+S.gains.map(function(g){return g.toFixed(2);}).join(' / ')+(S.torchOn?' · 补光下':''));
+  }finally{ S.busy=false; $('btnCalibRun').disabled=false; }
+}
+
+async function scan(){
+  if(S.busy) return;
+  S.busy=true; $('btnScan').disabled=true; $('btnScan').textContent='取色中…';
+  try{
+    var s=await sampleMulti(S.settings.frames);
+    if(!s){ toast('取样失败，检查相机权限'); return; }
+    var corrected=E.applyGains(s.rgb,S.gains);
+    var lab=E.rgbToLab(corrected);
+    var top=E.match(lab,S.db,5);
+    if(!top.length){ toast('色库为空，请导入色库'); return; }
+    renderResult(corrected,s,top,contextWarnings());
+    var lum=0.2126*corrected[0]+0.7152*corrected[1]+0.0722*corrected[2];
+    $('lightPill').classList.toggle('on',lum>55 && lum<225);
+    $('lightText').textContent = lum<55 ? '偏暗 · 建议补光' : (lum>225 ? '偏亮 · 小心过曝' : '亮度合适');
+  }finally{
+    S.busy=false; $('btnScan').disabled=false; $('btnScan').textContent='识别颜色';
+  }
+}
+
+function renderResult(rgb,s,top,warnings){
+  $('resultCard').classList.add('show');
+  $('swSeen').style.background=E.rgbToHex(rgb);
+  $('hexSeen').textContent=E.rgbToHex(rgb).toUpperCase()+' · RGB('+rgb.map(function(v){return Math.round(v);}).join(',')+')';
+  $('swMatch').style.background=top[0].hex;
+  $('hexMatch').textContent=top[0].hex.toUpperCase();
+  $('winName').textContent=top[0].name;
+  $('winCode').textContent=top[0].code;
+  $('winFamily').textContent=top[0].family||'—';
+  $('winDE').textContent=top[0].dE.toFixed(2);
+  $('winPixels').textContent=s.pixels+' × '+s.frames+'帧';
+  var c=E.confidence(top[0].dE);
+  var box=$('confBox');
+  box.className='conf '+c.level;
+  box.innerHTML='<b>'+c.label+'</b> · '+c.text+'<small>若 ΔE 偏大：先重新校准白卡，再检查是否有混合光源、反光或漆面纹理。相邻候选色差很小时，以实物色卡为准。</small>';
+  var cw=$('contextWarn');
+  cw.classList.toggle('show',!!(warnings&&warnings.length));
+  cw.innerHTML = warnings&&warnings.length
+    ? '<b>光照/校准警告</b><br>'+warnings.map(esc).join('<br>')+'<br><span style="font-size:11px">把白卡放回取景框点「校验光照」可实测确认。</span>'
+    : '';
+  $('resultTime').textContent=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  $('altList').innerHTML=top.slice(1).map(function(t){
+    return '<div class="alt"><div class="chip" style="background:'+t.hex+'"></div>'+
+      '<div class="txt"><b>'+esc(t.name)+'</b><small>'+esc(t.code)+' · '+t.hex.toUpperCase()+'</small></div>'+
+      '<div class="de">ΔE '+t.dE.toFixed(2)+'</div></div>';
+  }).join('');
+}
+function esc(s){ return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+function toggleFreeze(){
+  if(!S.frozen){
+    if(!video.videoWidth){ toast('相机还没就绪'); return; }
+    var fctx=freezeCanvas.getContext('2d',{willReadFrequently:true});
+    freezeCanvas.width=video.videoWidth; freezeCanvas.height=video.videoHeight;
+    fctx.drawImage(video,0,0);
+    S.frozenData=fctx.getImageData(0,0,freezeCanvas.width,freezeCanvas.height);
+    S.frozen=true;
+    $('stage').classList.add('frozen');
+    $('btnFreeze').textContent='解冻画面';
+    toast('已冻结 · 现在可以移开手机慢慢核对');
+  }else{
+    S.frozen=false; S.frozenData=null;
+    $('stage').classList.remove('frozen');
+    $('btnFreeze').textContent='冻结画面';
+  }
+}
+
+async function toggleAE(){
+  if(!S.track){ toast('相机还没就绪'); return; }
+  try{
+    var caps=S.track.getCapabilities?S.track.getCapabilities():{};
+    var c=S.track.getConstraints();
+    var adv=[];
+    if(caps.whiteBalanceMode) adv.push({whiteBalanceMode:S.aeLocked?'continuous':'manual'});
+    if(caps.exposureMode) adv.push({exposureMode:S.aeLocked?'continuous':'manual'});
+    if(caps.focusMode) adv.push({focusMode:S.aeLocked?'continuous':'manual'});
+    if(!adv.length){ toast('这台设备/浏览器不提供手动曝光接口，请用「冻结画面」稳住画面'); return; }
+    await S.track.applyConstraints({advanced:adv});
+    S.aeLocked=!S.aeLocked; syncAE();
+    toast(S.aeLocked?'已尝试锁定曝光/白平衡':'已恢复自动');
+  }catch(err){
+    toast('锁定失败：'+((err&&err.name)||'不支持'));
+  }
+}
+
+/* ---------- calibration sheet ---------- */
+function openCalib(){
+  syncTorch();
+  $('calibSheet').classList.add('open');
+  renderCardList('');
+}
+function setMode(m){
+  S.calibMode=m;
+  $('modeWhite').classList.toggle('sel',m==='white');
+  $('modeDulux').classList.toggle('sel',m==='dulux');
+  $('duluxCardPick').classList.toggle('show',m==='dulux');
+}
+function renderCardList(q){
+  q=(q||'').trim().toLowerCase();
+  var pool=S.db.filter(function(c){
+    return c.lab[0]>86 && /white|snow|polar|ivory|cream|linen|vivid|natural white|lexicon/i.test(c.name+' '+c.code);
+  });
+  if(q) pool=pool.filter(function(c){ return (c.name+' '+c.code).toLowerCase().indexOf(q)>=0; });
+  pool=pool.slice(0,60);
+  $('cardList').innerHTML=pool.map(function(c){
+    var sel=S.cardTarget && S.cardTarget[0]===E.hexToRgb(c.hex)[0] && S.cardTarget[2]===E.hexToRgb(c.hex)[2];
+    return '<label class="radio" style="margin:0;border:0;border-bottom:1px solid #eef2f6;border-radius:0;padding:9px 11px;display:flex;align-items:center;gap:9px;'+(sel?'background:#f2f7fd':'')+'" data-code="'+esc(c.code)+'" data-hex="'+c.hex+'">'+
+      '<span style="width:26px;height:26px;border-radius:6px;border:1px solid #ccd5de;background:'+c.hex+';flex:none"></span>'+
+      '<span style="flex:1"><b style="font-size:12.5px">'+esc(c.name)+'</b><small style="font-size:10.5px">'+esc(c.code)+' · '+c.hex.toUpperCase()+'</small></span></label>';
+  }).join('') || '<div style="padding:12px;font-size:12px;color:#5c6b7a">没找到。可直接在设置里导入你自己的色卡色号。</div>';
+  Array.prototype.forEach.call($('cardList').querySelectorAll('label'),function(el){
+    el.addEventListener('click',function(){
+      S.cardTarget=E.hexToRgb(el.dataset.hex);
+      S.cardTargetName=el.dataset.code;
+      renderCardList($('cardSearch').value);
+      toast('已选 '+el.dataset.code);
+    });
+  });
+}
+
+/* ---------- csv / json import ---------- */
+function parseCSV(text){
+  var rows=[],row=[],cur='',q=false;
+  text=text.replace(/^\uFEFF/,'');
+  for(var i=0;i<text.length;i++){
+    var ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
+      else cur+=ch;
+    }else{
+      if(ch==='"') q=true;
+      else if(ch===','){ row.push(cur);cur=''; }
+      else if(ch==='\n'){ row.push(cur);rows.push(row);row=[];cur=''; }
+      else if(ch!=='\r') cur+=ch;
+    }
+  }
+  if(cur.length||row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(function(r){ return r.some(function(c){return c.trim();}); });
+}
+function rowsToDb(rows){
+  var head=rows[0].map(function(x){return x.trim().toLowerCase();});
+  var ci=head.indexOf('code'), ni=head.indexOf('name'), hi=head.indexOf('hex'), fi=head.indexOf('family');
+  if(hi<0 || (ci<0&&ni<0)) throw new Error('表头需要 code,name,hex 三列');
+  var out=[];
+  for(var i=1;i<rows.length;i++){
+    var r=rows[i]; if(!r[hi]) continue;
+    var hex=r[hi].trim();
+    if(hex[0]!=='#') hex='#'+hex;
+    if(!E.hexToRgb(hex)) continue;
+    out.push({code:(ci>=0?r[ci]:'').trim()||('C'+i), name:(ni>=0?r[ni]:'').trim()||('Colour '+i), hex:hex.toLowerCase(), family:(fi>=0?r[fi]:'').trim()});
+  }
+  return out;
+}
+function downloadTemplate(){
+  var csv='code,name,hex,family\nSW1G1,Vivid White,#f7f8f4,whites-and-neutrals\n30YY 69/048,浅滩银珠,#d8d3c4,cn\nDLX1001-1,Delicate White,#f1f2ee,ca\n';
+  var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='dulux-colour-template.csv'; a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+}
+
+/* ---------- wire up ---------- */
+function bind(){
+  $('btnScan').addEventListener('click',scan);
+  $('btnCalib').addEventListener('click',openCalib);
+  $('btnRecalib').addEventListener('click',openCalib);
+  $('btnClearCalib').addEventListener('click',function(){ S.gains=null;S.calibLabel='';S.calibContext=null;S.invalidReason='';save();syncCalibUI();toast('已清除校准'); });
+  $('btnFreeze').addEventListener('click',toggleFreeze);
+  $('btnFlip').addEventListener('click',function(){ S.facing=S.facing==='environment'?'user':'environment'; startCamera(); });
+  $('btnAE').addEventListener('click',toggleAE);
+  $('btnTorch').addEventListener('click',toggleTorch);
+  $('btnVerify').addEventListener('click',verifyCalibration);
+  $('btnCalibCancel').addEventListener('click',function(){ $('calibSheet').classList.remove('open'); });
+  $('calibSheet').addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
+  $('btnCalibRun').addEventListener('click',calibrate);
+  $('modeWhite').addEventListener('click',function(){ setMode('white'); });
+  $('modeDulux').addEventListener('click',function(){ setMode('dulux'); });
+  $('cardSearch').addEventListener('input',function(){ renderCardList(this.value); });
+
+  $('boxSize').addEventListener('input',function(){ S.settings.box=+this.value; $('boxVal').textContent=this.value+' px'; placeReticle(); save(); });
+  $('frameCount').addEventListener('input',function(){ S.settings.frames=+this.value; $('frameVal').textContent=this.value+' 帧'; save(); });
+
+  $('stage').addEventListener('pointerdown',function(e){
+    var r=this.getBoundingClientRect();
+    S.fx=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+    S.fy=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+    placeReticle();
+  });
+
+  $('btnImport').addEventListener('click',function(){ $('fileInput').click(); });
+  $('btnTemplate').addEventListener('click',downloadTemplate);
+  $('btnRestore').addEventListener('click',function(){ setOfficial(); save(); syncDbUI(); renderCardList(''); toast('已恢复官方色库'); });
+  $('fileInput').addEventListener('change',function(e){
+    var f=e.target.files[0]; if(!f) return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      try{
+        var txt=String(rd.result), rows;
+        if(/^\s*[\[{]/.test(txt)){
+          var j=JSON.parse(txt); var arr=Array.isArray(j)?j:(j.colours||[]);
+          rows=[['code','name','hex','family']].concat(arr.map(function(c){
+            return Array.isArray(c)?[c[0],c[1],c[2],c[3]||'']:[c.code||'',c.name||'',c.hex||'',c.family||''];
+          }));
+        } else rows=parseCSV(txt);
+        var parsed=rowsToDb(rows);
+        if(!parsed.length) throw new Error('没解析出有效颜色');
+        S.db=buildDb(parsed); S.dbLabel='custom';
+        $('dbBadge').textContent='自定义色库 '+S.db.length+' 色';
+        $('dbBadge').className='badge custom';
+        save(); syncDbUI(); renderCardList('');
+        toast('已导入 '+S.db.length+' 色');
+      }catch(err){ toast('导入失败：'+err.message); }
+    };
+    rd.readAsText(f,'utf-8');
+    e.target.value='';
+  });
+}
+
+function init(){
+  load();
+  if(S.customDb && S.customDb.length){
+    S.db=buildDb(S.customDb); S.dbLabel='custom';
+    $('dbBadge').textContent='自定义色库 '+S.db.length+' 色';
+    $('dbBadge').className='badge custom';
+  }else{
+    setOfficial();
+  }
+  syncDbUI(); syncCalibUI(); syncAE(); syncTorch();
+  $('boxSize').value=S.settings.box; $('boxVal').textContent=S.settings.box+' px';
+  $('frameCount').value=S.settings.frames; $('frameVal').textContent=S.settings.frames+' 帧';
+  placeReticle();
+  bind();
+  startCamera();
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js?sharecode=PQPJUV7IVW').catch(function(){}); }
+}
+document.addEventListener('DOMContentLoaded',init);
+})();
+</script>
+</body>
+</html>

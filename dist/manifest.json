@@ -1,0 +1,32 @@
+{
+  "name": "Dulux 取色器 - 相机识别油漆颜色",
+  "short_name": "取色器",
+  "description": "用安卓相机对漆面取样，白卡校准后匹配最近的 Dulux 官方色号。全部本地处理。",
+  "start_url": "./index.html?sharecode=PQPJUV7IVW",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6f8",
+  "theme_color": "#002C65",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icon-192.png?sharecode=PQPJUV7IVW",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png?sharecode=PQPJUV7IVW",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png?sharecode=PQPJUV7IVW",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
